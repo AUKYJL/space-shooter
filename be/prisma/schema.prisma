@@ -1,0 +1,162 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id         String   @id @default(uuid())
+  telegramId String?  @unique
+  username   String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  currencies     UserCurrencies?
+  loadout        UserLoadout?
+  weapons        UserWeapon[]
+  upgrades       UserUpgrade[]
+  runs           Run[]
+  stationUnlocks UserStationUnlock[]
+  stationSlots   UserStationSlot[]
+}
+
+model UserCurrencies {
+  userId      String   @id
+  coins       Int      @default(0)
+  donateCoins Int      @default(0)
+  ore         Int      @default(0)
+  crystal     Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model WeaponCatalog {
+  id                String  @id
+  name              String
+  type              String
+  baseDamage        Int
+  baseFireRate      Float
+  projectileSpeed   Float
+  unlockedByDefault Boolean @default(false)
+
+  userWeapons   UserWeapon[]
+  selectedIn    UserLoadout[]
+  runs          Run[]
+}
+
+model UserWeapon {
+  id       String  @id @default(uuid())
+  userId   String
+  weaponId String
+  unlocked Boolean @default(false)
+  level    Int?
+
+  user   User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  weapon WeaponCatalog @relation(fields: [weaponId], references: [id], onDelete: Restrict)
+
+  @@unique([userId, weaponId])
+}
+
+model UserLoadout {
+  userId           String @id
+  selectedWeaponId String
+  updatedAt        DateTime @updatedAt
+
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  selectedWeapon WeaponCatalog @relation(fields: [selectedWeaponId], references: [id], onDelete: Restrict)
+}
+
+model UpgradeCatalog {
+  id                String @id
+  type              String
+  level             Int
+  costCoins         Int
+  costResourcesJson Json
+  effectJson        Json
+
+  userUpgrades UserUpgrade[]
+}
+
+model UserUpgrade {
+  id         String   @id @default(uuid())
+  userId     String
+  upgradeId  String
+  purchasedAt DateTime @default(now())
+
+  user    User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  upgrade UpgradeCatalog @relation(fields: [upgradeId], references: [id], onDelete: Restrict)
+
+  @@unique([userId, upgradeId])
+}
+
+model Run {
+  id               String   @id @default(uuid())
+  userId           String
+  seed             Int
+  weaponId         String
+  snapshotJson     Json
+  startedAt        DateTime @default(now())
+  finishedAt       DateTime?
+  endedBy          String?
+  extractionCount  Int?
+  rewardMultiplier Float?
+  status           String
+
+  user   User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  weapon WeaponCatalog @relation(fields: [weaponId], references: [id], onDelete: Restrict)
+  result RunResult?
+}
+
+model RunResult {
+  runId             String @id
+  summaryJson       Json
+  grantedRewardsJson Json
+  accepted          Boolean
+  suspiciousScore   Int?
+
+  run Run @relation(fields: [runId], references: [id], onDelete: Cascade)
+}
+
+model StationCatalog {
+  id                  String @id
+  name                String
+  resourceType        String
+  baseAmountPerCycle  Int
+  cycleDurationHours  Int
+  unlockCostJson      Json
+
+  unlocks UserStationUnlock[]
+  slots   UserStationSlot[]
+}
+
+model UserStationUnlock {
+  id         String   @id @default(uuid())
+  userId     String
+  stationId  String
+  unlockedAt DateTime @default(now())
+
+  user    User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  station StationCatalog @relation(fields: [stationId], references: [id], onDelete: Restrict)
+
+  @@unique([userId, stationId])
+}
+
+model UserStationSlot {
+  id               String   @id @default(uuid())
+  userId           String
+  slotIndex        Int
+  assignedStationId String?
+  startedAt        DateTime?
+  endsAt           DateTime?
+  lastCollectedAt  DateTime?
+
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assignedStation StationCatalog? @relation(fields: [assignedStationId], references: [id], onDelete: Restrict)
+
+  @@unique([userId, slotIndex])
+}

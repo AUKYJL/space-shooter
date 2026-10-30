@@ -1,0 +1,43 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: space_shooter
+      POSTGRES_PASSWORD: space_shooter
+      POSTGRES_DB: space_shooter
+    ports:
+      - "54320:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  be:
+    image: node:20-alpine
+    working_dir: /app
+    depends_on:
+      - postgres
+    environment:
+      BE_PORT: "4000"
+      JWT_SECRET: ${JWT_SECRET:-dev_secret_change_me}
+      DATABASE_URL: postgresql://space_shooter:space_shooter@postgres:5432/space_shooter?schema=public
+    command: sh -lc "npm ci && npm run start:dev"
+    ports:
+      - "4000:4000"
+    volumes:
+      - ./be:/app
+      - be_node_modules:/app/node_modules
+
+  fe:
+    image: node:20-alpine
+    working_dir: /app
+    command: sh -lc "npm ci && npm run dev -- --host 0.0.0.0 --port 5173"
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./fe:/app
+      - fe_node_modules:/app/node_modules
+
+volumes:
+  postgres_data:
+  be_node_modules:
+  fe_node_modules:
+
