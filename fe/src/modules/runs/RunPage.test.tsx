@@ -83,10 +83,10 @@ describe('run page', () => {
   it('sends enemy counts separately and never sends a client score', async () => {
     mount()
     await screen.findByText('one')
-    act(() => bridge.events?.emit('run:finished', { ...summary, score: 999999, enemiesDestroyed: { sentryTurret: 2, shieldDrone: 1 } }))
+    act(() => bridge.events?.emit('run:finished', { ...summary, score: 999999, enemiesDestroyed: { sentryTurret: 2, shieldDrone: 1, mineLayer: 3 } }))
     await waitFor(() => expect(finishRun).toHaveBeenCalledTimes(1))
     const payload = vi.mocked(finishRun).mock.calls[0][0]
-    expect(payload.summary.enemiesDestroyed).toEqual({ sentryTurret: 2, shieldDrone: 1 })
+    expect(payload.summary.enemiesDestroyed).toEqual({ sentryTurret: 2, shieldDrone: 1, mineLayer: 3 })
     expect(payload.summary.asteroidsDestroyed).toBe(4)
     expect(payload.summary.destroyedByType).toEqual(summary.destroyed)
     expect(payload).not.toHaveProperty('score')

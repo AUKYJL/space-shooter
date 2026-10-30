@@ -26,6 +26,10 @@ class DestroyedByTypeDto {
 class EnemiesDestroyedDto {
   @ValidateIf((_object, value) => value !== undefined)
   @IsInt() @Min(0) @Max(2_147_483_647)
+  mineLayer?: number;
+
+  @ValidateIf((_object, value) => value !== undefined)
+  @IsInt() @Min(0) @Max(2_147_483_647)
   shieldDrone?: number;
 
   @IsInt() @Min(0) @Max(2_147_483_647)

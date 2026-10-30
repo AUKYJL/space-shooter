@@ -8,4 +8,5 @@ export function calculateScore(config: ScoringConfig, destroyed: ScoringConfig['
     + (stageReached - 1) * config.stageBonus
     + enemiesDestroyed.sentryTurret * (config.enemyPoints?.sentryTurret ?? 0)
     + (config.version >= 3 ? (enemiesDestroyed.shieldDrone ?? 0) * (config.enemyPoints?.shieldDrone ?? 0) : 0)
+    + (config.version >= 5 ? (enemiesDestroyed.mineLayer ?? 0) * (config.enemyPoints?.mineLayer ?? 0) : 0)
 }

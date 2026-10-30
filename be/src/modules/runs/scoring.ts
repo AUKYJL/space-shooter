@@ -3,35 +3,37 @@ import type { FinishRunDto } from "./http/dto/finish-run.dto";
 
 import { SENTRY_TURRET_CONFIG, type SentryTurretConfig } from "./config/sentryTurretConfig";
 import { SHIELD_DRONE_CONFIG, type ShieldDroneConfig } from "./config/shieldDroneConfig";
+import { MINE_LAYER_CONFIG, type MineLayerConfig } from "./config/mineLayerConfig";
 
 export const SCORING_CONFIG = Object.freeze({
-  version: 4,
+  version: 6,
   asteroidPoints: Object.freeze({ normal: 10, fast: 20, big: 30, armored: 50 }),
   stageBonus: 100,
-  enemyPoints: Object.freeze({ sentryTurret: 100, shieldDrone: 50 }),
-  enemies: Object.freeze({ sentryTurret: SENTRY_TURRET_CONFIG, shieldDrone: SHIELD_DRONE_CONFIG }),
+  enemyPoints: Object.freeze({ sentryTurret: 100, shieldDrone: 50, mineLayer: 150 }),
+  enemies: Object.freeze({ sentryTurret: SENTRY_TURRET_CONFIG, shieldDrone: SHIELD_DRONE_CONFIG, mineLayer: MINE_LAYER_CONFIG }),
 });
 
-type EnemyConfigs = Readonly<{ sentryTurret: SentryTurretConfig; shieldDrone: ShieldDroneConfig }>;
+type EnemyConfigs = Readonly<{ sentryTurret: SentryTurretConfig; shieldDrone: ShieldDroneConfig; mineLayer?: MineLayerConfig }>;
 
 export type ScoringConfig = {
   version: number;
   enemies?: EnemyConfigs;
   asteroidPoints: { normal: number; fast: number; big: number; armored: number };
   stageBonus: number;
-  enemyPoints?: { sentryTurret: number; shieldDrone?: number };
-  // Historical v2/v3 snapshots only; v4 spawning and validation use enemies.
+  enemyPoints?: { sentryTurret: number; shieldDrone?: number; mineLayer?: number };
+  // Historical v2/v3 snapshots only; v4+ spawning and validation use enemies.
   enemySpawnRules?: { sentryTurret: { minStage: number; firstSpawnDelayMs: number; spawnEveryMs: number; maxActive: number }; shieldDrone?: { minStage: number; maxActive: number; spawnChance?: number } };
 };
 
-export function calculateScore(config: ScoringConfig, destroyed: ScoringConfig["asteroidPoints"], stageReached: number, enemiesDestroyed: { sentryTurret: number; shieldDrone?: number } = { sentryTurret: 0 }) {
+export function calculateScore(config: ScoringConfig, destroyed: ScoringConfig["asteroidPoints"], stageReached: number, enemiesDestroyed: { sentryTurret: number; shieldDrone?: number; mineLayer?: number } = { sentryTurret: 0 }) {
   const score = destroyed.normal * config.asteroidPoints.normal
     + destroyed.fast * config.asteroidPoints.fast
     + destroyed.big * config.asteroidPoints.big
     + destroyed.armored * config.asteroidPoints.armored
     + (stageReached - 1) * config.stageBonus
     + enemiesDestroyed.sentryTurret * (config.enemyPoints?.sentryTurret ?? 0)
-    + (config.version >= 3 ? (enemiesDestroyed.shieldDrone ?? 0) * (config.enemyPoints?.shieldDrone ?? 0) : 0);
+    + (config.version >= 3 ? (enemiesDestroyed.shieldDrone ?? 0) * (config.enemyPoints?.shieldDrone ?? 0) : 0)
+    + (config.version >= 5 ? (enemiesDestroyed.mineLayer ?? 0) * (config.enemyPoints?.mineLayer ?? 0) : 0);
   if (!Number.isSafeInteger(score) || score < 0 || score > 2_147_483_647) {
     throw new BadRequestException("score out of range");
   }
@@ -82,6 +84,19 @@ export function getSuspicionReasons(input: FinishRunDto, startedAt: Date, now: D
       const maxKills = disabled || durationMs < earliestSpawnMs
         ? 0 : 1 + Math.floor((durationMs - earliestSpawnMs) / turretRule.spawnEveryMs);
       if (stageReached < Math.max(droneRule.minStage, turretRule.minStage) || droneKills > maxKills) reasons.push("drone spawn bound");
+    }
+  }
+  const mineLayerKills = summary.enemiesDestroyed?.mineLayer ?? 0;
+  if (mineLayerKills > 0) {
+    const rule = config.enemies?.mineLayer;
+    if (config.version < 5 || !rule || config.enemyPoints?.mineLayer === undefined) {
+      reasons.push("mine layer config");
+    } else {
+      const earliestStageMs = rule.minStage <= 1 ? 0 : 22_000 + (rule.minStage - 2) * 32_000;
+      const earliestSpawnMs = earliestStageMs + rule.firstSpawnDelayMs;
+      const maxKills = rule.maxActive < 1 || rule.spawnChance <= 0 || durationMs < earliestSpawnMs
+        ? 0 : 1 + Math.floor((durationMs - earliestSpawnMs) / rule.spawnEveryMs);
+      if (stageReached < rule.minStage || mineLayerKills > maxKills) reasons.push("mine layer spawn bound");
     }
   }
   const maxStage = durationMs < 22_000 ? 1 : 2 + Math.floor((durationMs - 22_000) / 32_000);

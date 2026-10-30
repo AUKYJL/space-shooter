@@ -45,7 +45,7 @@ export class RunScene implements Scene {
   private elapsedMs = 0
   private extractionCount = 0
   private multiplier = 1
-  private enemiesDestroyed = { sentryTurret: 0, shieldDrone: 0 }
+  private enemiesDestroyed: { sentryTurret: number; shieldDrone: number; mineLayer?: number } = { sentryTurret: 0, shieldDrone: 0 }
   private destroyed: RunSummary['destroyed'] = { normal: 0, fast: 0, big: 0, armored: 0 }
   private unsubPause: Unsubscribe | null = null
   private unsubResume: Unsubscribe | null = null
@@ -70,6 +70,7 @@ export class RunScene implements Scene {
   }) {
     this.getViewportSize = options.getViewportSize
     this.scoringConfig = structuredClone(options.scoringConfig)
+    if (this.scoringConfig.version >= 5) this.enemiesDestroyed.mineLayer = 0
     this.events = options.events
     this.player = new PlayerShip({ maxHp: options.tuning?.maxHp, visuals: options.shipVisuals })
     this.input = new InputSystem({
@@ -89,8 +90,10 @@ export class RunScene implements Scene {
       weaponId: options.weaponId,
     })
     this.spawns = new SpawnSystem({
-      enemies: this.scoringConfig.version >= 4 ? this.scoringConfig.enemies : undefined,
-      onEnemyDestroyed: (enemy) => { this.enemiesDestroyed[enemy.type] += 1 },
+      enemies: this.scoringConfig.version >= 4 && this.scoringConfig.enemies
+        ? { ...this.scoringConfig.enemies, mineLayer: this.scoringConfig.version >= 5 ? this.scoringConfig.enemies.mineLayer : undefined }
+        : undefined,
+      onEnemyDestroyed: (enemy) => { this.enemiesDestroyed[enemy.type] = (this.enemiesDestroyed[enemy.type] ?? 0) + 1 },
       container: this.asteroidsContainer,
       getViewportSize: options.getViewportSize,
       getPlayerPosition: () => ({ x: this.player.view.position.x, y: this.player.view.position.y }),

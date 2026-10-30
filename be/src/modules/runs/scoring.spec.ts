@@ -1,4 +1,4 @@
-import { calculateScore, getSuspicionReasons, SCORING_CONFIG } from "./scoring";
+import { calculateScore, getSuspicionReasons, SCORING_CONFIG, type ScoringConfig } from "./scoring";
 import { FinishRunDto } from "./http/dto/finish-run.dto";
 import { plainToInstance } from "class-transformer";
 import { validateSync } from "class-validator";
@@ -173,16 +173,19 @@ describe("shield drone scoring", () => {
   });
   it("checks stage and repeat boundaries without imposing a probabilistic quota", () => {
     const input = withDrones();
-    expect(reasons(input)).toEqual([]);
+    const config = { ...SCORING_CONFIG, enemies: { ...SCORING_CONFIG.enemies,
+      shieldDrone: { ...SCORING_CONFIG.enemies.shieldDrone, minStage: 3 } } };
+    const check = () => getSuspicionReasons(input, new Date(0), now, config);
+    expect(check()).toEqual([]);
     input.durationMs--;
-    expect(reasons(input)).toContain("drone spawn bound");
+    expect(check()).toContain("drone spawn bound");
     input.durationMs = 68_999;
     input.summary.enemiesDestroyed!.shieldDrone = 2;
-    expect(reasons(input, 100_000)).toContain("drone spawn bound");
+    expect(check()).toContain("drone spawn bound");
     input.durationMs++;
-    expect(reasons(input, 100_000)).toEqual([]);
+    expect(check()).toEqual([]);
     input.summary.stageReached = 2;
-    expect(reasons(input, 100_000)).toContain("drone spawn bound");
+    expect(check()).toContain("drone spawn bound");
   });
   it("uses pinned spawn rules, not current deployment values", () => {
     const input = withDrones();
@@ -254,5 +257,78 @@ describe('server enemy config v4', () => {
     Object.assign(input.summary, { stageReached: 3, enemiesDestroyed: { sentryTurret: 1, shieldDrone: 1 } });
     const reasons = getSuspicionReasons(input, new Date(0), now, config);
     expect(reasons).toContain(type === 'sentryTurret' ? 'enemy spawn bound' : 'drone spawn bound');
+  });
+});
+
+describe("Mine Layer scoring v5", () => {
+  function mineInput(count = 1, durationMs = 88_000): FinishRunDto {
+    const input = valid();
+    Object.assign(input, { durationMs, endedBy: "death", extractionCount: 0, rewardMultiplier: 1.45 });
+    Object.assign(input.summary, { stageReached: 4, enemiesDestroyed: { sentryTurret: 0, mineLayer: count } });
+    return input;
+  }
+  const stageFourConfig: ScoringConfig = { ...SCORING_CONFIG, enemies: { ...SCORING_CONFIG.enemies,
+    mineLayer: { ...SCORING_CONFIG.enemies.mineLayer, minStage: 4 } } };
+  const check = (input: FinishRunDto, config: ScoringConfig = stageFourConfig) =>
+    getSuspicionReasons(input, new Date(+now - input.durationMs), now, config);
+
+  it("uses pinned points, optional zero counts and independent spawn bounds", () => {
+    const input = mineInput();
+    expect(check(input)).toEqual([]);
+    expect(calculateScore(SCORING_CONFIG, input.summary.destroyedByType, 4, input.summary.enemiesDestroyed)).toBe(560);
+    const pinned = { ...SCORING_CONFIG, enemyPoints: { ...SCORING_CONFIG.enemyPoints, mineLayer: 7 } };
+    expect(calculateScore(pinned, input.summary.destroyedByType, 4, input.summary.enemiesDestroyed)).toBe(417);
+    expect(calculateScore(SCORING_CONFIG, input.summary.destroyedByType, 4, { sentryTurret: 0 })).toBe(410);
+    const turretDisabled = { ...SCORING_CONFIG, enemies: { ...SCORING_CONFIG.enemies,
+      sentryTurret: { ...SCORING_CONFIG.enemies.sentryTurret, spawnChance: 0 } } };
+    expect(check(input, turretDisabled)).toEqual([]);
+  });
+
+  it("checks exact earliest spawn and interval boundaries", () => {
+    expect(check(mineInput(1, 87_999))).toContain("mine layer spawn bound");
+    expect(check(mineInput(1, 88_000))).toEqual([]);
+    expect(check(mineInput(2, 105_999))).toContain("mine layer spawn bound");
+    expect(check(mineInput(2, 106_000))).toEqual([]);
+    const beforeStage = mineInput();
+    beforeStage.summary.stageReached = 3;
+    expect(check(beforeStage)).toContain("mine layer spawn bound");
+  });
+
+  it.each([1, 2, 3, 4])("rejects positive counts for legacy version %s", (version) => {
+    const input = mineInput();
+    const old = { ...SCORING_CONFIG, version };
+    expect(check(input, old)).toContain("mine layer config");
+    expect(calculateScore(old, input.summary.destroyedByType, 4, input.summary.enemiesDestroyed)).toBe(410);
+    input.summary.enemiesDestroyed!.mineLayer = 0;
+    expect(check(input, old)).toEqual([]);
+  });
+
+  it.each([{ spawnChance: 0 }, { maxActive: 0 }])("rejects kills when spawn is disabled %j", (rule) => {
+    const config = { ...SCORING_CONFIG, enemies: { ...SCORING_CONFIG.enemies,
+      mineLayer: { ...SCORING_CONFIG.enemies.mineLayer, ...rule } } };
+    expect(check(mineInput(), config)).toContain("mine layer spawn bound");
+  });
+
+  it("uses pinned spawn timing and rejects missing configuration and overflow", () => {
+    const input = mineInput();
+    const slower = { ...SCORING_CONFIG, enemies: { ...SCORING_CONFIG.enemies,
+      mineLayer: { ...SCORING_CONFIG.enemies.mineLayer, minStage: 4, firstSpawnDelayMs: 3000 } } };
+    expect(check(input, slower)).toContain("mine layer spawn bound");
+    const { mineLayer: _mine, ...enemies } = SCORING_CONFIG.enemies;
+    expect(check(input, { ...SCORING_CONFIG, enemies })).toContain("mine layer config");
+    expect(calculateScore.bind(null, SCORING_CONFIG, input.summary.destroyedByType, 4,
+      { sentryTurret: 0, mineLayer: 2_147_483_647 })).toThrow("score out of range");
+  });
+
+  it("validates optional nonnegative integer counters and rejects null", () => {
+    const errors = (input: unknown) => validateSync(plainToInstance(FinishRunDto, input), { whitelist: true, forbidNonWhitelisted: true });
+    expect(errors(mineInput())).toEqual([]);
+    const omitted = mineInput(); delete omitted.summary.enemiesDestroyed!.mineLayer;
+    expect(errors(omitted)).toEqual([]);
+    for (const mineLayer of [null, -1, 0.5, "1", Infinity, 2_147_483_648]) {
+      const input = mineInput();
+      Object.assign(input.summary.enemiesDestroyed!, { mineLayer });
+      expect(errors(input).length).toBeGreaterThan(0);
+    }
   });
 });

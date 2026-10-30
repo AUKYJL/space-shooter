@@ -1,4 +1,5 @@
 import type { Bullet } from '@/game/entities/Bullet'
+import { MineLayer } from '@/game/entities/MineLayer'
 import type { DamageableTarget } from '@/game/entities/Enemy'
 import type { DangerZone } from '@/game/entities/DangerZone'
 import type { HealZone } from '@/game/entities/HealZone'
@@ -34,6 +35,8 @@ export class CollisionSystem {
     const enemies = this.spawns.getEnemies?.() ?? []
     this.bulletsVsTargets(bullets, asteroids)
     this.bulletsVsTargets(bullets, enemies)
+    this.bulletsVsTargets(bullets, this.spawns.getMines?.() ?? [])
+    this.minesVsPlayer()
     this.playerVsTargets(asteroids)
     this.playerVsDangerZones(dtMs, dangerZones)
     this.playerVsTargets(enemies)
@@ -77,9 +80,10 @@ export class CollisionSystem {
 
     for (const target of targets) {
       if (!target.active) continue
+      if (target instanceof MineLayer && !target.canDamagePlayer) continue
       if (!this.player.intersectsCircle(target.position.x, target.position.y, target.radius)) continue
 
-      this.damagePlayer(1)
+      this.damagePlayer(target instanceof MineLayer ? target.config.contactDamage : 1)
       return
     }
   }
@@ -90,6 +94,17 @@ export class CollisionSystem {
     haptics.damage()
     this.onPlayerDamaged?.()
     this.invulnRemainingMs = this.invulnAfterHitMs
+  }
+
+  private minesVsPlayer() {
+    for (const mine of this.spawns.getMines?.() ?? []) {
+      if (mine.state !== 'armed') continue
+      const contact = this.player.intersectsCircle(mine.position.x, mine.position.y, mine.radius)
+      if (!mine.fuseExpired && !contact) continue
+      if (mine.detonate() && this.player.intersectsCircle(mine.position.x, mine.position.y, mine.config.blastRadius)) {
+        this.damagePlayer(mine.config.damage)
+      }
+    }
   }
 
   private enemyBulletsVsPlayer() {

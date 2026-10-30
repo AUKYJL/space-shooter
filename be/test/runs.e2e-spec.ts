@@ -231,6 +231,23 @@ import type { FinishRunDto } from "../src/modules/runs/http/dto/finish-run.dto";
       score: 410, summary: { enemiesDestroyed: { sentryTurret: 0, shieldDrone: 2 } },
     });
   });
+  it("pins Mine Layer score, persists the count and replays without additional rewards", async () => {
+    const body = input(await start(120_000));
+    Object.assign(body, { durationMs: 110_000, rewardMultiplier: 1.45 });
+    Object.assign(body.summary, { stageReached: 4, enemiesDestroyed: { sentryTurret: 0, mineLayer: 2 } });
+    jest.spyOn(service, "getConfig").mockReturnValue({ ...SCORING_CONFIG,
+      enemyPoints: { ...SCORING_CONFIG.enemyPoints, mineLayer: 999 } });
+    const first = await post("/runs/finish", body).expect(201);
+    expect(first.body).toMatchObject({ accepted: true, score: 710, bestScore: 710 });
+    const after = await currencies();
+    body.summary.enemiesDestroyed!.mineLayer = 99;
+    expect((await post("/runs/finish", body).expect(201)).body).toEqual(first.body);
+    expect(await currencies()).toEqual(after);
+    expect((await get("/runs/history").expect(200)).body[0].result).toMatchObject({
+      score: 710, summary: { enemiesDestroyed: { sentryTurret: 0, mineLayer: 2 } },
+    });
+  });
+
   it("rejects drone kills against a version 2 snapshot without rewards or record", async () => {
     const body = input(await start(100_000));
     const v2 = { version: 2, asteroidPoints: SCORING_CONFIG.asteroidPoints, stageBonus: 100, enemyPoints: { sentryTurret: 100 },

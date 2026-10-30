@@ -3,6 +3,10 @@ import { ShieldDrone } from '@/game/entities/ShieldDrone'
 import { ShieldDroneView } from '@/game/views/ShieldDroneView'
 import { SentryTurret } from '@/game/entities/SentryTurret'
 import { SentryTurretView } from '@/game/views/SentryTurretView'
+import { MineLayer } from '@/game/entities/MineLayer'
+import { Mine } from '@/game/entities/Mine'
+import { MineLayerView } from '@/game/views/MineLayerView'
+import { MineView } from '@/game/views/MineView'
 import { Bullet } from '@/game/entities/Bullet'
 import type { Position } from '@/game/entities/Enemy'
 import type { EnemyConfigs } from '@/game/core/enemyConfig'
@@ -39,12 +43,19 @@ export class SpawnSystem {
   private enemyConfig?: EnemyConfigs
   private dronePool: ShieldDrone[] = []
   private droneViews = new Map<ShieldDrone, ShieldDroneView>()
-  private onEnemyDestroyed?: (enemy: SentryTurret | ShieldDrone) => void
-  private enemies: (SentryTurret | ShieldDrone)[] = []
+  private onEnemyDestroyed?: (enemy: SentryTurret | ShieldDrone | MineLayer) => void
+  private enemies: (SentryTurret | ShieldDrone | MineLayer)[] = []
   private enemyPool: SentryTurret[] = []
   private enemyViews = new Map<SentryTurret, SentryTurretView>()
   private enemyBullets: Bullet[] = []
   private enemyBulletPool: Bullet[] = []
+  private mineLayerPool: MineLayer[] = []
+  private mineLayerViews = new Map<MineLayer, MineLayerView>()
+  private mines: Mine[] = []
+  private minePool: Mine[] = []
+  private mineViews = new Map<Mine, MineView>()
+  private mineLayerGateJustOpened = false
+  private mineLayerSpawnRemainingMs = 0
   private enemyStage = 0
   private enemyStageMultiplier = 1
   private enemyGateJustOpened = false
@@ -82,7 +93,7 @@ export class SpawnSystem {
     asteroidVisualTuning?: AsteroidVisualTuning
     rng?: () => number
     enemies?: EnemyConfigs
-    onEnemyDestroyed?: (enemy: SentryTurret | ShieldDrone) => void
+    onEnemyDestroyed?: (enemy: SentryTurret | ShieldDrone | MineLayer) => void
   }) {
     this.enemyConfig = options.enemies ? structuredClone(options.enemies) : undefined
     this.onEnemyDestroyed = options.onEnemyDestroyed
@@ -160,12 +171,18 @@ export class SpawnSystem {
       this.enemySpawnRemainingMs = rule.firstSpawnDelayMs
       this.enemyGateJustOpened = true
     }
+    const mineRule = this.enemyConfig?.mineLayer
+    if (mineRule && this.enemyStage < mineRule.minStage && stage >= mineRule.minStage) {
+      this.mineLayerSpawnRemainingMs = mineRule.firstSpawnDelayMs
+      this.mineLayerGateJustOpened = true
+    }
     this.enemyStage = stage
     this.enemyStageMultiplier = multiplier
   }
 
   getEnemies() { return this.enemies }
   getEnemyBullets() { return this.enemyBullets }
+  getMines() { return this.mines }
 
   private updateEnemies(dtMs: number) {
     const viewport = this.getViewportSize()
@@ -175,15 +192,21 @@ export class SpawnSystem {
       if (bullet.shouldDespawn(viewport)) this.despawnEnemyBullet(bullet)
     }
     const player = this.getPlayerPosition?.() ?? { x: viewport.width / 2, y: viewport.height }
+    // Age existing mines before ship updates create new ones.
+    for (const mine of this.mines) mine.update(dtMs)
     for (const enemy of this.enemies) {
       if (enemy.type === 'sentryTurret') {
         const direction = enemy.update(dtMs, player)
         if (direction) this.fireEnemyBullet(enemy, direction)
+      } else if (enemy.type === 'mineLayer') {
+        const drop = enemy.update(dtMs)
+        if (drop) this.dropMine(drop)
       } else {
         enemy.update(dtMs, viewport)
       }
     }
     this.resolveDestroyedEnemies()
+    this.spawnMineLayer(dtMs, viewport)
     const rule = this.enemyConfig?.sentryTurret
     if (!rule || this.enemyStage < rule.minStage) return
     // Stage changes are observed at the end of a frame: don't count that frame twice.
@@ -222,6 +245,40 @@ export class SpawnSystem {
     }
   }
 
+  private spawnMineLayer(dtMs: number, viewport: { width: number; height: number }) {
+    const cfg = this.enemyConfig?.mineLayer
+    if (!cfg || this.enemyStage < cfg.minStage) return
+    if (this.mineLayerGateJustOpened) {
+      this.mineLayerGateJustOpened = false
+      return
+    }
+    this.mineLayerSpawnRemainingMs = Math.max(0, this.mineLayerSpawnRemainingMs - dtMs)
+    if (this.mineLayerSpawnRemainingMs > 0
+      || this.enemies.filter((enemy) => enemy.type === 'mineLayer').length >= cfg.maxActive
+      || viewport.width <= 0 || viewport.height <= 0) return
+    this.mineLayerSpawnRemainingMs = cfg.spawnEveryMs
+    if (this.rng() >= cfg.spawnChance) return
+    const enemy = this.mineLayerPool.pop() ?? new MineLayer(cfg)
+    if (!this.mineLayerViews.has(enemy)) this.mineLayerViews.set(enemy, new MineLayerView(cfg))
+    enemy.spawn(viewport, this.rng() < 0.5, this.enemyStageMultiplier, this.rng())
+    const visual = this.mineLayerViews.get(enemy)!
+    visual.sync(enemy)
+    this.container.addChild(visual.view)
+    this.enemies.push(enemy)
+  }
+
+  private dropMine(position: Position) {
+    const cfg = this.enemyConfig!.mineLayer!.mine
+    if (this.mines.length >= cfg.maxActive) return
+    const mine = this.minePool.pop() ?? new Mine(cfg)
+    if (!this.mineViews.has(mine)) this.mineViews.set(mine, new MineView(cfg))
+    mine.spawn(position)
+    const visual = this.mineViews.get(mine)!
+    visual.sync(mine)
+    this.container.addChild(visual.view)
+    this.mines.push(mine)
+  }
+
   private fireEnemyBullet(enemy: SentryTurret, direction: Position) {
     const cfg = enemy.config.bullet
     if (this.enemyBullets.length >= cfg.maxActive) return
@@ -252,6 +309,9 @@ export class SpawnSystem {
         enemy.shieldDrone?.leave()
         this.container.removeChild(this.enemyViews.get(enemy)!.view)
         this.enemyPool.push(enemy)
+      } else if (enemy.type === 'mineLayer') {
+        this.container.removeChild(this.mineLayerViews.get(enemy)!.view)
+        this.mineLayerPool.push(enemy)
       } else {
         enemy.detach()
         this.container.removeChild(this.droneViews.get(enemy)!.view)
@@ -259,9 +319,19 @@ export class SpawnSystem {
       }
       this.enemies.splice(i, 1)
     }
+    for (let i = this.mines.length - 1; i >= 0; i -= 1) {
+      const mine = this.mines[i]
+      const visual = this.mineViews.get(mine)!
+      if (!mine.visible) {
+        this.container.removeChild(visual.view)
+        this.mines.splice(i, 1)
+        this.minePool.push(mine)
+      } else visual.sync(mine)
+    }
     // Also runs after collisions: shield visuals reflect lethal hits this frame.
     for (const enemy of this.enemies) {
       if (enemy.type === 'sentryTurret') this.enemyViews.get(enemy)!.sync(enemy)
+      else if (enemy.type === 'mineLayer') this.mineLayerViews.get(enemy)!.sync(enemy)
       else this.droneViews.get(enemy)!.sync(enemy)
     }
   }
@@ -269,9 +339,19 @@ export class SpawnSystem {
   clearEnemies() {
     for (const enemy of this.enemies) {
       if (enemy.type === 'sentryTurret') enemy.shieldDrone?.leave()
-      else enemy.detach()
+      else if (enemy.type === 'shieldDrone') enemy.detach()
       enemy.state = 'inactive'
     }
+    for (const mine of [...this.mines, ...this.minePool]) mine.state = 'inactive'
+    for (const visual of this.mineViews.values()) visual.destroy()
+    for (const visual of this.mineLayerViews.values()) visual.destroy()
+    this.mineViews.clear()
+    this.mineLayerViews.clear()
+    this.mines = []
+    this.minePool = []
+    this.mineLayerPool = []
+    this.mineLayerSpawnRemainingMs = this.enemyConfig?.mineLayer?.firstSpawnDelayMs ?? 0
+    this.mineLayerGateJustOpened = true
     for (const visual of this.droneViews.values()) visual.destroy()
     this.droneViews.clear()
     this.dronePool = []

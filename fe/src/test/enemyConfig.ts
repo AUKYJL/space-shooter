@@ -1,5 +1,5 @@
 // Explicit server-response fixtures for tests; never imported by production code.
-import type { SentryTurretConfig, ShieldDroneConfig } from '@/game/core/enemyConfig'
+import type { SentryTurretConfig, ShieldDroneConfig, MineLayerConfig } from '@/game/core/enemyConfig'
 
 export const SENTRY_TURRET_CONFIG: SentryTurretConfig = {
   minStage: 2,
@@ -49,4 +49,35 @@ export const SHIELD_DRONE_CONFIG: ShieldDroneConfig = {
   shieldWidth: 3,
 }
 
-export const ENEMY_CONFIG = { sentryTurret: SENTRY_TURRET_CONFIG, shieldDrone: SHIELD_DRONE_CONFIG }
+export const MINE_LAYER_CONFIG: MineLayerConfig = Object.freeze({
+  minStage: 4,
+  spawnChance: 1,
+  firstSpawnDelayMs: 2000,
+  spawnEveryMs: 18000,
+  maxActive: 1,
+  hp: 8,
+  radius: 20,
+  contactDamage: 1,
+  width: 40,
+  height: 28,
+  // Fractions of field height, measured from the top (0 = top, 1 = bottom).
+  minHeightRatio: 0.2,
+  maxHeightRatio: 0.4,
+  entryRatio: 0.15,
+  exitRatio: 0.85,
+  enteringMs: 1000,
+  activeMs: 4000,
+  leavingMs: 1000,
+  mineCount: 4,
+  firstDropDelayMs: 500,
+  dropEveryMs: 1000,
+  color: 0xffaa44,
+  outlineColor: 0xeeeeff,
+  outlineWidth: 2,
+  mine: Object.freeze({ hp: 1, radius: 10, activationMs: 1200, fuseMs: 5000,
+    damage: 1, blastRadius: 64, explosionMs: 300, blinkEveryMs: 200, maxActive: 16,
+    color: 0xff3333, dormantAlpha: 0.4, blinkAlpha: 0.3,
+    explosionColor: 0xff6655, explosionAlpha: 0.7, outlineWidth: 2 }),
+})
+
+export const ENEMY_CONFIG = { sentryTurret: SENTRY_TURRET_CONFIG, shieldDrone: SHIELD_DRONE_CONFIG, mineLayer: MINE_LAYER_CONFIG }

@@ -47,4 +47,49 @@ export type ShieldDroneConfig = Readonly<{
   shieldWidth: number
 }>
 
-export type EnemyConfigs = Readonly<{ sentryTurret: SentryTurretConfig; shieldDrone: ShieldDroneConfig }>
+export type MineConfig = Readonly<{
+  hp: number
+  radius: number
+  activationMs: number
+  fuseMs: number
+  damage: number
+  blastRadius: number
+  explosionMs: number
+  blinkEveryMs: number
+  maxActive: number
+  color: number
+  dormantAlpha: number
+  blinkAlpha: number
+  explosionColor: number
+  explosionAlpha: number
+  outlineWidth: number
+}>
+
+export type MineLayerConfig = Readonly<{
+  minStage: number
+  spawnChance: number
+  firstSpawnDelayMs: number
+  spawnEveryMs: number
+  maxActive: number
+  hp: number
+  radius: number
+  contactDamage: number
+  width: number
+  height: number
+  entryRatio: number
+  exitRatio: number
+  enteringMs: number
+  activeMs: number
+  leavingMs: number
+  mineCount: number
+  firstDropDelayMs: number
+  dropEveryMs: number
+  color: number
+  outlineColor: number
+  outlineWidth: number
+  mine: MineConfig
+}> & (Readonly<{ minHeightRatio: number; maxHeightRatio: number }>
+  | Readonly<{ heightRatio: number }>) // Historical v5 snapshots retain fixed height.
+
+
+export type EnemyConfigs = Readonly<{ sentryTurret: SentryTurretConfig; shieldDrone: ShieldDroneConfig; mineLayer?: MineLayerConfig }>
