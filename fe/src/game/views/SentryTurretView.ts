@@ -1,34 +1,43 @@
 import { Container, Graphics } from 'pixi.js'
 import type { SentryTurret } from '@/game/entities/SentryTurret'
-import { SENTRY_TURRET_CONFIG as cfg } from '@/game/entities/sentryTurretConfig'
+import type { SentryTurretConfig, ShieldDroneConfig } from '@/game/core/enemyConfig'
 
 export class SentryTurretView {
   readonly view = new Container()
+  readonly shield = new Graphics()
   private platform = new Graphics()
   private cannon = new Graphics()
   private hp = new Graphics()
   private lastState = ''
   private lastHp = -1
 
-  constructor() {
-    this.cannon.circle(0, 0, cfg.cannonRadius).fill(0xddeeff)
-      .rect(0, -cfg.barrelWidth / 2, cfg.barrelLength, cfg.barrelWidth).fill(0xddeeff)
-    this.view.addChild(this.platform, this.cannon, this.hp)
+  private config: SentryTurretConfig
+
+  constructor(cfg: SentryTurretConfig, shieldCfg: ShieldDroneConfig) {
+    this.config = cfg
+    this.shield.circle(0, 0, shieldCfg.shieldRadius)
+      .stroke({ width: shieldCfg.shieldWidth, color: shieldCfg.color, alpha: shieldCfg.shieldAlpha })
+    this.shield.visible = false
+    this.cannon.circle(0, 0, cfg.cannonRadius).fill(cfg.cannonColor)
+      .rect(0, -cfg.barrelWidth / 2, cfg.barrelLength, cfg.barrelWidth).fill(cfg.cannonColor)
+    this.view.addChild(this.shield, this.platform, this.cannon, this.hp)
   }
 
   sync(model: SentryTurret) {
+    const cfg = this.config
     this.view.position.set(model.position.x, model.position.y)
     this.view.visible = model.active
+    this.shield.visible = model.isShielded
     this.cannon.rotation = model.angle
     if (model.state !== this.lastState) {
-      const color = model.state === 'active' ? 0xff6655 : model.state === 'entering' ? 0xffc857 : 0x7b8aab
+      const color = model.state === 'active' ? cfg.activeColor : model.state === 'entering' ? cfg.enteringColor : cfg.leavingColor
       this.platform.clear().rect(-cfg.width / 2, -cfg.height / 2, cfg.width, cfg.height)
-        .fill(color).stroke({ width: 2, color: 0xeeeeff })
+        .fill(color).stroke({ width: cfg.outlineWidth, color: cfg.outlineColor })
       this.lastState = model.state
     }
     if (model.hp !== this.lastHp) {
-      this.hp.clear().rect(-cfg.width / 2, -cfg.height / 2 - 9, cfg.width, 4).fill(0x222233)
-        .rect(-cfg.width / 2, -cfg.height / 2 - 9, cfg.width * model.hp / model.maxHp, 4).fill(0x66ff99)
+      this.hp.clear().rect(-cfg.width / 2, -cfg.height / 2 - cfg.hpBar.offset, cfg.width, cfg.hpBar.height).fill(cfg.hpBar.backgroundColor)
+        .rect(-cfg.width / 2, -cfg.height / 2 - cfg.hpBar.offset, cfg.width * model.hp / model.maxHp, cfg.hpBar.height).fill(cfg.hpBar.color)
       this.lastHp = model.hp
     }
   }

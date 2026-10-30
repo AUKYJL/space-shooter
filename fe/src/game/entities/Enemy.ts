@@ -9,7 +9,7 @@ export interface DamageableTarget {
   isDead(): boolean
 }
 
-export type EnemyType = 'sentryTurret'
+export type EnemyType = 'sentryTurret' | 'shieldDrone'
 export type EnemyState = 'entering' | 'active' | 'leaving' | 'inactive' | 'destroyed'
 
 export interface Enemy extends DamageableTarget {

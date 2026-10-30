@@ -1,6 +1,8 @@
+import type { EnemiesDestroyed } from '@/modules/runs/api/runsApi'
 import type { EventBus, Unsubscribe } from '@/game/core/EventBus'
 
 export type RunHudState = {
+  enemiesDestroyed?: EnemiesDestroyed
   score: number
   stage: number
   hp: number
@@ -39,7 +41,7 @@ export type RunSummary = {
     gold: number
     crystal: number
   }
-  enemiesDestroyed: { sentryTurret: number }
+  enemiesDestroyed: EnemiesDestroyed
   destroyed: {
     normal: number
     fast: number

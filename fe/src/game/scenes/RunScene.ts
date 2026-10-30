@@ -45,7 +45,7 @@ export class RunScene implements Scene {
   private elapsedMs = 0
   private extractionCount = 0
   private multiplier = 1
-  private enemiesDestroyed = { sentryTurret: 0 }
+  private enemiesDestroyed = { sentryTurret: 0, shieldDrone: 0 }
   private destroyed: RunSummary['destroyed'] = { normal: 0, fast: 0, big: 0, armored: 0 }
   private unsubPause: Unsubscribe | null = null
   private unsubResume: Unsubscribe | null = null
@@ -89,8 +89,7 @@ export class RunScene implements Scene {
       weaponId: options.weaponId,
     })
     this.spawns = new SpawnSystem({
-      enemySpawnRule: this.scoringConfig.version >= 2 && this.scoringConfig.enemyPoints
-        ? this.scoringConfig.enemySpawnRules?.sentryTurret : undefined,
+      enemies: this.scoringConfig.version >= 4 ? this.scoringConfig.enemies : undefined,
       onEnemyDestroyed: (enemy) => { this.enemiesDestroyed[enemy.type] += 1 },
       container: this.asteroidsContainer,
       getViewportSize: options.getViewportSize,
@@ -188,6 +187,7 @@ export class RunScene implements Scene {
       this.hudEmitRemainingMs = 100
       const extraction = this.extraction.getExtractionState()
       this.events.emit('run:hud-update', {
+        enemiesDestroyed: { ...this.enemiesDestroyed },
         score: calculateScore(this.scoringConfig, this.destroyed, this.difficulty.getStage(), this.enemiesDestroyed),
         stage: this.difficulty.getStage(),
         hp: this.player.hp,

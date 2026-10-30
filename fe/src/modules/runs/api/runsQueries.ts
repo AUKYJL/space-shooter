@@ -24,13 +24,15 @@ export function useStartRunMutation() {
       let config = await qc.fetchQuery(configOptions)
       try {
         const result = await startRun({ weaponId, scoringConfigVersion: config.version })
-        return { ...result, scoringConfig: structuredClone(config) }
+        if (!result.snapshot.scoringConfig) throw new Error('Run snapshot config is missing')
+        return { ...result, scoringConfig: structuredClone(result.snapshot.scoringConfig) }
       } catch (error) {
         if (!(error instanceof ApiError) || error.status !== 409) throw error
         await qc.invalidateQueries({ queryKey: qk.runConfig(), refetchType: 'none' })
         config = await qc.fetchQuery(configOptions)
         const result = await startRun({ weaponId, scoringConfigVersion: config.version })
-        return { ...result, scoringConfig: structuredClone(config) }
+        if (!result.snapshot.scoringConfig) throw new Error('Run snapshot config is missing')
+        return { ...result, scoringConfig: structuredClone(result.snapshot.scoringConfig) }
       }
     },
   })

@@ -1,12 +1,18 @@
 import type { Enemy, EnemyState, Position } from './Enemy'
-import { SENTRY_TURRET_CONFIG } from './sentryTurretConfig'
+import type { ShieldDrone } from './ShieldDrone'
+import type { SentryTurretConfig } from '@/game/core/enemyConfig'
 
 // Gameplay model: no Pixi objects, drawing or wall-clock timers.
 export class SentryTurret implements Enemy {
   readonly type = 'sentryTurret'
   readonly position: Position = { x: 0, y: 0 }
-  readonly radius = SENTRY_TURRET_CONFIG.radius
+  readonly config: SentryTurretConfig
+
+  constructor(config: SentryTurretConfig) { this.config = config }
+
+  get radius() { return this.config.radius }
   state: EnemyState = 'inactive'
+  shieldDrone: ShieldDrone | null = null
   hp = 0
   maxHp = 0
   angle = Math.PI / 2
@@ -18,11 +24,14 @@ export class SentryTurret implements Enemy {
     return this.state === 'entering' || this.state === 'active' || this.state === 'leaving'
   }
 
+  get isShielded() { return this.shieldDrone?.isProtecting(this) ?? false }
+
   spawn(x: number, stopY: number, stageMultiplier: number) {
+    this.shieldDrone?.leave()
     this.position.x = x
     this.position.y = -this.radius
     this.stopY = stopY
-    this.hp = this.maxHp = Math.max(1, Math.ceil(SENTRY_TURRET_CONFIG.hp * stageMultiplier))
+    this.hp = this.maxHp = Math.max(1, Math.ceil(this.config.hp * stageMultiplier))
     this.angle = Math.PI / 2
     this.state = 'entering'
     this.stateMs = 0
@@ -33,7 +42,7 @@ export class SentryTurret implements Enemy {
   update(dtMs: number, player: Position): Position | null {
     if (!this.active) return null
     let remaining = Math.max(0, dtMs)
-    const cfg = SENTRY_TURRET_CONFIG
+    const cfg = this.config
     if (this.state === 'entering') {
       const step = Math.min(remaining, cfg.enteringMs - this.stateMs)
       this.stateMs += step
@@ -52,6 +61,7 @@ export class SentryTurret implements Enemy {
       this.fireMs += step
       remaining -= step
       if (this.stateMs >= cfg.activeMs) {
+        this.shieldDrone?.leave()
         this.state = 'leaving'
         this.stateMs = 0
       } else if (this.fireMs >= cfg.fireEveryMs) {
@@ -70,8 +80,13 @@ export class SentryTurret implements Enemy {
 
   takeDamage(amount: number) {
     if (!this.active) return
-    this.hp = Math.max(0, this.hp - Math.max(0, amount))
-    if (this.hp === 0) this.state = 'destroyed'
+    const drone = this.shieldDrone
+    const multiplier = drone?.isProtecting(this) ? 1 - drone.config.damageReduction : 1
+    this.hp = Math.max(0, this.hp - Math.max(0, amount) * multiplier)
+    if (this.hp === 0) {
+      this.state = 'destroyed'
+      this.shieldDrone?.leave()
+    }
   }
 
   isDead() {

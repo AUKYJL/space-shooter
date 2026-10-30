@@ -26,3 +26,13 @@ it('adds pinned enemy points and leaves old config scoring intact', () => {
   expect(calculateScore({ ...v2, enemyPoints: { sentryTurret: 7 } }, destroyed, 2, { sentryTurret: 2 })).toBe(224)
   expect(calculateScore(config, destroyed, 2)).toBe(210)
 })
+
+it('adds pinned drone points only for version 3+, with omitted counters treated as zero', () => {
+  const destroyed = { normal: 1, fast: 1, big: 1, armored: 1 }
+  const v3 = { ...config, version: 3, enemyPoints: { sentryTurret: 100, shieldDrone: 50 } }
+  expect(calculateScore(v3, destroyed, 3, { sentryTurret: 0, shieldDrone: 1 })).toBe(360)
+  expect(calculateScore({ ...v3, enemyPoints: { sentryTurret: 100, shieldDrone: 7 } }, destroyed, 3,
+    { sentryTurret: 1, shieldDrone: 2 })).toBe(424)
+  expect(calculateScore(v3, destroyed, 3, { sentryTurret: 1 })).toBe(410)
+  expect(calculateScore({ ...v3, version: 2 }, destroyed, 3, { sentryTurret: 1, shieldDrone: 2 })).toBe(410)
+})

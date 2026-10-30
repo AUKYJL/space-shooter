@@ -1,5 +1,6 @@
+import { ENEMY_CONFIG } from '@/test/enemyConfig'
 import { Container } from 'pixi.js'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { RunScene } from './RunScene'
 import { EventBus } from '@/game/core/EventBus'
 import type { RunBridgeEventMap, RunSummary } from '@/game/ui-bridge/gameToReact'
@@ -7,19 +8,22 @@ import type { SpawnSystem } from '@/game/systems/SpawnSystem'
 import type { ShootingSystem } from '@/game/systems/ShootingSystem'
 import type { DifficultySystem } from '@/game/systems/DifficultySystem'
 import type { PlayerShip } from '@/game/entities/PlayerShip'
+import type { ScoringConfig } from '@/modules/runs/api/runsApi'
 import { Bullet } from '@/game/entities/Bullet'
 
-const config = { version: 2, asteroidPoints: { normal: 10, fast: 20, big: 30, armored: 50 }, stageBonus: 100,
+const config = { version: 4, asteroidPoints: { normal: 10, fast: 20, big: 30, armored: 50 }, stageBonus: 100,
   enemyPoints: { sentryTurret: 100 },
-  enemySpawnRules: { sentryTurret: { minStage: 2, firstSpawnDelayMs: 2000, spawnEveryMs: 15000, maxActive: 1 } } }
-function setup() {
+  enemies: ENEMY_CONFIG }
+const droneConfig = { ...config, enemyPoints: { sentryTurret: 100, shieldDrone: 50 },
+  enemies: { ...ENEMY_CONFIG, shieldDrone: { ...ENEMY_CONFIG.shieldDrone, spawnChance: 1 } } }
+function setup(selectedConfig: ScoringConfig = config, stage = 2) {
   const events = new EventBus<RunBridgeEventMap>()
-  const scene = new RunScene({ canvas: document.createElement('canvas'), events, scoringConfig: config,
+  const scene = new RunScene({ canvas: document.createElement('canvas'), events, scoringConfig: selectedConfig,
     getViewportSize: () => ({ width: 400, height: 800 }) })
   scene.mount(new Container())
   const state = scene as unknown as { spawns: SpawnSystem; difficulty: DifficultySystem; player: PlayerShip; shooting: ShootingSystem }
   vi.spyOn(state.spawns, 'getAsteroids').mockReturnValue([])
-  state.difficulty.advanceStage()
+  for (let i = 1; i < stage; i++) state.difficulty.advanceStage()
   scene.update(16)
   scene.update(2000)
   const enemy = state.spawns.getEnemies()[0]
@@ -27,6 +31,42 @@ function setup() {
 }
 
 describe('RunScene enemies', () => {
+  afterEach(() => vi.restoreAllMocks())
+  it('reports drone score to HUD and finish, freezes on pause, and clears active links on finish', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.25)
+    const { scene, state, events, enemy } = setup(droneConfig, 3)
+    const drone = state.spawns.getEnemies().find((item) => item.type === 'shieldDrone')!
+    scene.update(1200)
+    const position = { ...drone.position }
+    events.emit('run:pause', undefined)
+    scene.update(10000)
+    expect(drone.position).toEqual(position)
+    events.emit('run:resume', undefined)
+    const hud = vi.fn()
+    events.on('run:hud-update', hud)
+    drone.takeDamage(100)
+    scene.update(100)
+    expect(hud).toHaveBeenLastCalledWith(expect.objectContaining({ score: 250,
+      enemiesDestroyed: { sentryTurret: 0, shieldDrone: 1 } }))
+    const result = vi.fn()
+    events.on('run:finished', result)
+    state.player.hp = 0
+    scene.update(0)
+    expect(result).toHaveBeenCalledOnce()
+    expect(result).toHaveBeenCalledWith(expect.objectContaining({ score: 250,
+      enemiesDestroyed: { sentryTurret: 0, shieldDrone: 1 } }))
+    expect(state.spawns.getEnemies()).toHaveLength(0)
+    expect(drone.turret).toBeNull()
+    expect(enemy.type === 'sentryTurret' && enemy.shieldDrone).toBeNull()
+    scene.destroy()
+  })
+
+  it('does not reconstruct enemy defaults for legacy snapshots', () => {
+    const { scene, state } = setup({ ...droneConfig, version: 2 }, 3)
+    expect(state.spawns.getEnemies()).toHaveLength(0)
+    scene.destroy()
+  })
+
   it('counts a lethal hit exactly once before the death result, with no loot or charge', () => {
     const { scene, state, events, enemy } = setup()
     const results: RunSummary[] = []
@@ -74,7 +114,7 @@ describe('RunScene enemies', () => {
     const result = vi.fn()
     next.events.on('run:finished', result)
     next.scene.update(0)
-    expect(result).toHaveBeenCalledWith(expect.objectContaining({ enemiesDestroyed: { sentryTurret: 0 }, score: 100 }))
+    expect(result).toHaveBeenCalledWith(expect.objectContaining({ enemiesDestroyed: { sentryTurret: 0, shieldDrone: 0 }, score: 100 }))
     next.scene.destroy()
   })
 })

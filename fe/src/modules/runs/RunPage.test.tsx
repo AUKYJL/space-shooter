@@ -24,7 +24,7 @@ vi.mock('@/shared/ui/drawer', () => ({
 }))
 
 const config = { version: 1, asteroidPoints: { normal: 10, fast: 20, big: 30, armored: 50 }, stageBonus: 100 }
-const initial = { runId: 'one', seed: 1, scoringConfigVersion: 1, snapshot: { weaponId: 'basic_laser', damage: 1, fireRate: 2, maxHp: 5 } }
+const initial = { runId: 'one', seed: 1, scoringConfigVersion: 1, snapshot: { weaponId: 'basic_laser', damage: 1, fireRate: 2, maxHp: 5, scoringConfig: config } }
 const summary: RunSummary = { score: 110, stageReached: 1, durationMs: 20_000, endedBy: 'death', extractionCount: 0, multiplier: 1,
   collected: { coins: 10, iron: 2, gold: 0, crystal: 1 }, banked: { coins: 0, iron: 0, gold: 0, crystal: 0 },
   enemiesDestroyed: { sentryTurret: 0 },
@@ -83,10 +83,10 @@ describe('run page', () => {
   it('sends enemy counts separately and never sends a client score', async () => {
     mount()
     await screen.findByText('one')
-    act(() => bridge.events?.emit('run:finished', { ...summary, score: 999999, enemiesDestroyed: { sentryTurret: 2 } }))
+    act(() => bridge.events?.emit('run:finished', { ...summary, score: 999999, enemiesDestroyed: { sentryTurret: 2, shieldDrone: 1 } }))
     await waitFor(() => expect(finishRun).toHaveBeenCalledTimes(1))
     const payload = vi.mocked(finishRun).mock.calls[0][0]
-    expect(payload.summary.enemiesDestroyed).toEqual({ sentryTurret: 2 })
+    expect(payload.summary.enemiesDestroyed).toEqual({ sentryTurret: 2, shieldDrone: 1 })
     expect(payload.summary.asteroidsDestroyed).toBe(4)
     expect(payload.summary.destroyedByType).toEqual(summary.destroyed)
     expect(payload).not.toHaveProperty('score')

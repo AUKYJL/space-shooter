@@ -1,3 +1,4 @@
+import { ENEMY_CONFIG } from '@/test/enemyConfig'
 import { Container } from 'pixi.js'
 import { describe, expect, it, vi } from 'vitest'
 import { Bullet } from '@/game/entities/Bullet'
@@ -11,10 +12,10 @@ function setup() {
   const player = new PlayerShip({ maxHp: 5 })
   player.setPosition(200, 700)
   const spawns = new SpawnSystem({ container: new Container(), getViewportSize: () => ({ width: 400, height: 800 }),
-    rng: () => 0.5, enemySpawnRule: { minStage: 2, firstSpawnDelayMs: 2000, spawnEveryMs: 15000, maxActive: 1 } })
+    rng: () => 0.5, enemies: ENEMY_CONFIG })
   spawns.setEnemyStage(2, 1)
   spawns.update(16); spawns.update(2000)
-  const enemy = spawns.getEnemies()[0]
+  const enemy = spawns.getEnemies().find((item) => item.type === 'sentryTurret')!
   enemy.update(1200, { x: 200, y: 700 })
   const bullets: Bullet[] = []
   const shooting = { getBullets: () => bullets, despawnBullet: (b: Bullet) => b.despawn() } as unknown as ShootingSystem

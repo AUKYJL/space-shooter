@@ -1,14 +1,15 @@
+import type { EnemyConfigs } from '@/game/core/enemyConfig'
 import { requestJson } from '@/shared/api/client'
 import { endpoints } from '@/shared/api/endpoints'
 
-export type EnemySpawnRule = { minStage: number; firstSpawnDelayMs: number; spawnEveryMs: number; maxActive: number }
+export type EnemiesDestroyed = { sentryTurret: number; shieldDrone?: number }
 
 export type ScoringConfig = {
   version: number
+  enemies?: EnemyConfigs
   asteroidPoints: { normal: number; fast: number; big: number; armored: number }
   stageBonus: number
-  enemyPoints?: { sentryTurret: number }
-  enemySpawnRules?: { sentryTurret: EnemySpawnRule }
+  enemyPoints?: { sentryTurret: number; shieldDrone?: number }
 }
 
 export type StartRunRequest = { weaponId: string; scoringConfigVersion: number }
@@ -16,7 +17,7 @@ export type StartRunResponse = {
   runId: string
   seed: number
   scoringConfigVersion: number
-  snapshot: { weaponId: string; damage: number; fireRate: number; maxHp: number }
+  snapshot: { weaponId: string; damage: number; fireRate: number; maxHp: number; scoringConfig: ScoringConfig }
 }
 
 export type FinishRunRequest = {
@@ -28,7 +29,7 @@ export type FinishRunRequest = {
   summary: {
     asteroidsDestroyed: number
     destroyedByType: ScoringConfig['asteroidPoints']
-    enemiesDestroyed?: { sentryTurret: number }
+    enemiesDestroyed?: EnemiesDestroyed
     stageReached: number
     largeAsteroidsDestroyed?: number
     armoredAsteroidsDestroyed?: number

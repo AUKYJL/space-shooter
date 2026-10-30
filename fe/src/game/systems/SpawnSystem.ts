@@ -1,10 +1,11 @@
 import { Container } from 'pixi.js'
+import { ShieldDrone } from '@/game/entities/ShieldDrone'
+import { ShieldDroneView } from '@/game/views/ShieldDroneView'
 import { SentryTurret } from '@/game/entities/SentryTurret'
 import { SentryTurretView } from '@/game/views/SentryTurretView'
 import { Bullet } from '@/game/entities/Bullet'
-import { SENTRY_TURRET_CONFIG as turretConfig } from '@/game/entities/sentryTurretConfig'
 import type { Position } from '@/game/entities/Enemy'
-import type { EnemySpawnRule } from '@/modules/runs/api/runsApi'
+import type { EnemyConfigs } from '@/game/core/enemyConfig'
 
 import type { Asteroid, AsteroidType } from '@/game/entities/Asteroid'
 import { Asteroid as AsteroidEntity, getAsteroidConfig } from '@/game/entities/Asteroid'
@@ -35,9 +36,11 @@ export class SpawnSystem {
   private zonesContainer: Container
   private rng: () => number
 
-  private enemySpawnRule?: EnemySpawnRule
-  private onEnemyDestroyed?: (enemy: SentryTurret) => void
-  private enemies: SentryTurret[] = []
+  private enemyConfig?: EnemyConfigs
+  private dronePool: ShieldDrone[] = []
+  private droneViews = new Map<ShieldDrone, ShieldDroneView>()
+  private onEnemyDestroyed?: (enemy: SentryTurret | ShieldDrone) => void
+  private enemies: (SentryTurret | ShieldDrone)[] = []
   private enemyPool: SentryTurret[] = []
   private enemyViews = new Map<SentryTurret, SentryTurretView>()
   private enemyBullets: Bullet[] = []
@@ -78,10 +81,10 @@ export class SpawnSystem {
     asteroidVisuals?: AsteroidAssets
     asteroidVisualTuning?: AsteroidVisualTuning
     rng?: () => number
-    enemySpawnRule?: EnemySpawnRule
-    onEnemyDestroyed?: (enemy: SentryTurret) => void
+    enemies?: EnemyConfigs
+    onEnemyDestroyed?: (enemy: SentryTurret | ShieldDrone) => void
   }) {
-    this.enemySpawnRule = options.enemySpawnRule
+    this.enemyConfig = options.enemies ? structuredClone(options.enemies) : undefined
     this.onEnemyDestroyed = options.onEnemyDestroyed
     this.container = options.container
     this.zonesContainer = new Container()
@@ -151,8 +154,9 @@ export class SpawnSystem {
   }
 
   setEnemyStage(stage: number, multiplier: number) {
-    const rule = this.enemySpawnRule
-    if (rule && this.enemyStage < rule.minStage && stage >= rule.minStage) {
+    const rule = this.enemyConfig?.sentryTurret
+    const minStage = rule?.minStage ?? Infinity
+    if (rule && this.enemyStage < minStage && stage >= minStage) {
       this.enemySpawnRemainingMs = rule.firstSpawnDelayMs
       this.enemyGateJustOpened = true
     }
@@ -172,12 +176,15 @@ export class SpawnSystem {
     }
     const player = this.getPlayerPosition?.() ?? { x: viewport.width / 2, y: viewport.height }
     for (const enemy of this.enemies) {
-      const direction = enemy.update(dtMs, player)
-      if (direction) this.fireEnemyBullet(enemy, direction)
-      this.enemyViews.get(enemy)!.sync(enemy)
+      if (enemy.type === 'sentryTurret') {
+        const direction = enemy.update(dtMs, player)
+        if (direction) this.fireEnemyBullet(enemy, direction)
+      } else {
+        enemy.update(dtMs, viewport)
+      }
     }
     this.resolveDestroyedEnemies()
-    const rule = this.enemySpawnRule
+    const rule = this.enemyConfig?.sentryTurret
     if (!rule || this.enemyStage < rule.minStage) return
     // Stage changes are observed at the end of a frame: don't count that frame twice.
     if (this.enemyGateJustOpened) {
@@ -185,23 +192,38 @@ export class SpawnSystem {
       return
     }
     this.enemySpawnRemainingMs = Math.max(0, this.enemySpawnRemainingMs - dtMs)
-    if (this.enemySpawnRemainingMs > 0 || this.enemies.length >= rule.maxActive) return
+    if (this.enemySpawnRemainingMs > 0 || this.enemies.filter((enemy) => enemy.type === 'sentryTurret').length >= rule.maxActive) return
     if (viewport.width <= 0 || viewport.height <= 0) return
+    this.enemySpawnRemainingMs = rule.spawnEveryMs
+    if (this.rng() >= rule.spawnChance) return
+    const turretConfig = rule
     const margin = Math.min(turretConfig.edgeMargin, viewport.width / 2)
     const x = margin + this.rng() * Math.max(0, viewport.width - margin * 2)
     const stopY = Math.min(viewport.height / 2, Math.max(turretConfig.radius, viewport.height * turretConfig.stopHeightRatio))
-    const enemy = this.enemyPool.pop() ?? new SentryTurret()
-    if (!this.enemyViews.has(enemy)) this.enemyViews.set(enemy, new SentryTurretView())
+    const enemy = this.enemyPool.pop() ?? new SentryTurret(turretConfig)
+    if (!this.enemyViews.has(enemy)) this.enemyViews.set(enemy, new SentryTurretView(turretConfig, this.enemyConfig!.shieldDrone))
     enemy.spawn(x, stopY, this.enemyStageMultiplier)
     const visual = this.enemyViews.get(enemy)!
     visual.sync(enemy)
     this.container.addChild(visual.view)
     this.enemies.push(enemy)
-    this.enemySpawnRemainingMs = rule.spawnEveryMs
+    const droneRule = this.enemyConfig?.shieldDrone
+    if (droneRule && this.enemyStage >= droneRule.minStage
+      && this.enemies.filter((item) => item.type === 'shieldDrone').length < droneRule.maxActive
+      && this.rng() < droneRule.spawnChance) {
+      const drone = this.dronePool.pop() ?? new ShieldDrone(droneRule)
+      if (!this.droneViews.has(drone)) this.droneViews.set(drone, new ShieldDroneView(droneRule))
+      drone.spawn(enemy, this.enemyStageMultiplier, viewport)
+      const droneVisual = this.droneViews.get(drone)!
+      droneVisual.sync(drone)
+      visual.sync(enemy)
+      this.container.addChild(droneVisual.view)
+      this.enemies.push(drone)
+    }
   }
 
   private fireEnemyBullet(enemy: SentryTurret, direction: Position) {
-    const cfg = turretConfig.bullet
+    const cfg = enemy.config.bullet
     if (this.enemyBullets.length >= cfg.maxActive) return
     const bullet = this.enemyBulletPool.pop() ?? new Bullet()
     bullet.spawn({ x: enemy.position.x, y: enemy.position.y,
@@ -226,13 +248,33 @@ export class SpawnSystem {
       const enemy = this.enemies[i]
       if (enemy.active) continue
       if (enemy.isDead()) this.onEnemyDestroyed?.(enemy)
-      this.container.removeChild(this.enemyViews.get(enemy)!.view)
+      if (enemy.type === 'sentryTurret') {
+        enemy.shieldDrone?.leave()
+        this.container.removeChild(this.enemyViews.get(enemy)!.view)
+        this.enemyPool.push(enemy)
+      } else {
+        enemy.detach()
+        this.container.removeChild(this.droneViews.get(enemy)!.view)
+        this.dronePool.push(enemy)
+      }
       this.enemies.splice(i, 1)
-      this.enemyPool.push(enemy)
+    }
+    // Also runs after collisions: shield visuals reflect lethal hits this frame.
+    for (const enemy of this.enemies) {
+      if (enemy.type === 'sentryTurret') this.enemyViews.get(enemy)!.sync(enemy)
+      else this.droneViews.get(enemy)!.sync(enemy)
     }
   }
 
   clearEnemies() {
+    for (const enemy of this.enemies) {
+      if (enemy.type === 'sentryTurret') enemy.shieldDrone?.leave()
+      else enemy.detach()
+      enemy.state = 'inactive'
+    }
+    for (const visual of this.droneViews.values()) visual.destroy()
+    this.droneViews.clear()
+    this.dronePool = []
     for (const visual of this.enemyViews.values()) visual.destroy()
     for (const bullet of [...this.enemyBullets, ...this.enemyBulletPool]) bullet.destroy()
     this.enemyViews.clear()

@@ -2,13 +2,14 @@ import { Container } from 'pixi.js'
 import { describe, expect, it, vi } from 'vitest'
 import { SpawnSystem } from './SpawnSystem'
 import type { SentryTurret } from '@/game/entities/SentryTurret'
+import { SENTRY_TURRET_CONFIG as cfg, ENEMY_CONFIG } from '@/test/enemyConfig'
 import { Bullet } from '@/game/entities/Bullet'
 
 const rule = { minStage: 2, firstSpawnDelayMs: 2000, spawnEveryMs: 15000, maxActive: 1 }
 function setup(spawnRule = rule) {
   const onEnemyDestroyed = vi.fn()
   const system = new SpawnSystem({ container: new Container(), getViewportSize: () => ({ width: 400, height: 800 }),
-    getPlayerPosition: () => ({ x: 200, y: 700 }), rng: () => 0.5, enemySpawnRule: spawnRule, onEnemyDestroyed })
+    getPlayerPosition: () => ({ x: 200, y: 700 }), rng: () => 0.5, enemies: { ...ENEMY_CONFIG, sentryTurret: { ...cfg, ...spawnRule } }, onEnemyDestroyed })
   system.setTuning({ spawnEveryMs: 1000000 })
   return { system, onEnemyDestroyed }
 }
@@ -16,7 +17,7 @@ function openStage(system: SpawnSystem) {
   system.setEnemyStage(2, 1.15)
   system.update(16)
   system.update(2000)
-  return system.getEnemies()[0]
+  return system.getEnemies().find((item) => item.type === 'sentryTurret')!
 }
 
 describe('SpawnSystem enemies', () => {
@@ -69,7 +70,8 @@ describe('SpawnSystem enemies', () => {
     system.update(100000)
     expect(system.getEnemyBullets()).toHaveLength(0)
     expect(system.getEnemies()).toHaveLength(1)
-    system.update(12100)
+    system.setEnemyStage(1, 1) // Observe departure without spawning a replacement.
+    system.update(cfg.enteringMs + cfg.activeMs + cfg.leavingMs)
     expect(system.getEnemies()).toHaveLength(0)
     expect(onEnemyDestroyed).toHaveBeenCalledTimes(1)
     system.destroy()
