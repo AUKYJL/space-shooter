@@ -1,4 +1,10 @@
 import { Container } from 'pixi.js'
+import { SentryTurret } from '@/game/entities/SentryTurret'
+import { SentryTurretView } from '@/game/views/SentryTurretView'
+import { Bullet } from '@/game/entities/Bullet'
+import { SENTRY_TURRET_CONFIG as turretConfig } from '@/game/entities/sentryTurretConfig'
+import type { Position } from '@/game/entities/Enemy'
+import type { EnemySpawnRule } from '@/modules/runs/api/runsApi'
 
 import type { Asteroid, AsteroidType } from '@/game/entities/Asteroid'
 import { Asteroid as AsteroidEntity, getAsteroidConfig } from '@/game/entities/Asteroid'
@@ -28,6 +34,18 @@ export class SpawnSystem {
   private asteroidVisuals?: AsteroidAssets
   private zonesContainer: Container
   private rng: () => number
+
+  private enemySpawnRule?: EnemySpawnRule
+  private onEnemyDestroyed?: (enemy: SentryTurret) => void
+  private enemies: SentryTurret[] = []
+  private enemyPool: SentryTurret[] = []
+  private enemyViews = new Map<SentryTurret, SentryTurretView>()
+  private enemyBullets: Bullet[] = []
+  private enemyBulletPool: Bullet[] = []
+  private enemyStage = 0
+  private enemyStageMultiplier = 1
+  private enemyGateJustOpened = false
+  private enemySpawnRemainingMs = 0
 
   private maxActive = 26
   private spawnEveryMs = 420
@@ -60,7 +78,11 @@ export class SpawnSystem {
     asteroidVisuals?: AsteroidAssets
     asteroidVisualTuning?: AsteroidVisualTuning
     rng?: () => number
+    enemySpawnRule?: EnemySpawnRule
+    onEnemyDestroyed?: (enemy: SentryTurret) => void
   }) {
+    this.enemySpawnRule = options.enemySpawnRule
+    this.onEnemyDestroyed = options.onEnemyDestroyed
     this.container = options.container
     this.zonesContainer = new Container()
     this.container.addChild(this.zonesContainer)
@@ -73,6 +95,7 @@ export class SpawnSystem {
   }
 
   update(dtMs: number) {
+    this.updateEnemies(dtMs)
     this.timeUntilSpawnMs = Math.max(0, this.timeUntilSpawnMs - dtMs)
     this.timeUntilDangerZoneMs = Math.max(0, this.timeUntilDangerZoneMs - dtMs)
     this.timeUntilHealZoneMs = Math.max(0, this.timeUntilHealZoneMs - dtMs)
@@ -125,6 +148,98 @@ export class SpawnSystem {
         this.healZonesPool.push(zone)
       }
     }
+  }
+
+  setEnemyStage(stage: number, multiplier: number) {
+    const rule = this.enemySpawnRule
+    if (rule && this.enemyStage < rule.minStage && stage >= rule.minStage) {
+      this.enemySpawnRemainingMs = rule.firstSpawnDelayMs
+      this.enemyGateJustOpened = true
+    }
+    this.enemyStage = stage
+    this.enemyStageMultiplier = multiplier
+  }
+
+  getEnemies() { return this.enemies }
+  getEnemyBullets() { return this.enemyBullets }
+
+  private updateEnemies(dtMs: number) {
+    const viewport = this.getViewportSize()
+    for (let i = this.enemyBullets.length - 1; i >= 0; i -= 1) {
+      const bullet = this.enemyBullets[i]
+      bullet.update(dtMs)
+      if (bullet.shouldDespawn(viewport)) this.despawnEnemyBullet(bullet)
+    }
+    const player = this.getPlayerPosition?.() ?? { x: viewport.width / 2, y: viewport.height }
+    for (const enemy of this.enemies) {
+      const direction = enemy.update(dtMs, player)
+      if (direction) this.fireEnemyBullet(enemy, direction)
+      this.enemyViews.get(enemy)!.sync(enemy)
+    }
+    this.resolveDestroyedEnemies()
+    const rule = this.enemySpawnRule
+    if (!rule || this.enemyStage < rule.minStage) return
+    // Stage changes are observed at the end of a frame: don't count that frame twice.
+    if (this.enemyGateJustOpened) {
+      this.enemyGateJustOpened = false
+      return
+    }
+    this.enemySpawnRemainingMs = Math.max(0, this.enemySpawnRemainingMs - dtMs)
+    if (this.enemySpawnRemainingMs > 0 || this.enemies.length >= rule.maxActive) return
+    if (viewport.width <= 0 || viewport.height <= 0) return
+    const margin = Math.min(turretConfig.edgeMargin, viewport.width / 2)
+    const x = margin + this.rng() * Math.max(0, viewport.width - margin * 2)
+    const stopY = Math.min(viewport.height / 2, Math.max(turretConfig.radius, viewport.height * turretConfig.stopHeightRatio))
+    const enemy = this.enemyPool.pop() ?? new SentryTurret()
+    if (!this.enemyViews.has(enemy)) this.enemyViews.set(enemy, new SentryTurretView())
+    enemy.spawn(x, stopY, this.enemyStageMultiplier)
+    const visual = this.enemyViews.get(enemy)!
+    visual.sync(enemy)
+    this.container.addChild(visual.view)
+    this.enemies.push(enemy)
+    this.enemySpawnRemainingMs = rule.spawnEveryMs
+  }
+
+  private fireEnemyBullet(enemy: SentryTurret, direction: Position) {
+    const cfg = turretConfig.bullet
+    if (this.enemyBullets.length >= cfg.maxActive) return
+    const bullet = this.enemyBulletPool.pop() ?? new Bullet()
+    bullet.spawn({ x: enemy.position.x, y: enemy.position.y,
+      directionX: direction.x, directionY: direction.y,
+      speed: cfg.speed, radius: cfg.radius, damage: cfg.damage,
+      lifetimeMs: cfg.lifetimeMs, color: cfg.color })
+    this.enemyBullets.push(bullet)
+    this.container.addChild(bullet.view)
+  }
+
+  despawnEnemyBullet(bullet: Bullet) {
+    const index = this.enemyBullets.indexOf(bullet)
+    if (index < 0) return
+    bullet.despawn()
+    this.container.removeChild(bullet.view)
+    this.enemyBullets.splice(index, 1)
+    this.enemyBulletPool.push(bullet)
+  }
+
+  resolveDestroyedEnemies() {
+    for (let i = this.enemies.length - 1; i >= 0; i -= 1) {
+      const enemy = this.enemies[i]
+      if (enemy.active) continue
+      if (enemy.isDead()) this.onEnemyDestroyed?.(enemy)
+      this.container.removeChild(this.enemyViews.get(enemy)!.view)
+      this.enemies.splice(i, 1)
+      this.enemyPool.push(enemy)
+    }
+  }
+
+  clearEnemies() {
+    for (const visual of this.enemyViews.values()) visual.destroy()
+    for (const bullet of [...this.enemyBullets, ...this.enemyBulletPool]) bullet.destroy()
+    this.enemyViews.clear()
+    this.enemies = []
+    this.enemyPool = []
+    this.enemyBullets = []
+    this.enemyBulletPool = []
   }
 
   private despawnAt(index: number) {
@@ -205,6 +320,7 @@ export class SpawnSystem {
   }
 
   destroy() {
+    this.clearEnemies()
     for (const asteroid of this.active) asteroid.destroy()
     for (const asteroid of this.pool) asteroid.destroy()
     for (const zone of this.dangerZonesActive) zone.destroy()

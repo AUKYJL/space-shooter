@@ -1,0 +1,16 @@
+export const SENTRY_TURRET_CONFIG = {
+  hp: 12,
+  radius: 32,
+  width: 64,
+  height: 32,
+  cannonRadius: 10,
+  barrelLength: 22,
+  barrelWidth: 6,
+  edgeMargin: 40,
+  stopHeightRatio: 0.18,
+  enteringMs: 1200,
+  activeMs: 30_000,
+  leavingMs: 900,
+  fireEveryMs: 1200,
+  bullet: { speed: 220, radius: 4, damage: 1, lifetimeMs: 4000, maxActive: 16, color: 0xff6655 },
+} as const

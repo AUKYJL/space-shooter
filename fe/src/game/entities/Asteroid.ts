@@ -1,4 +1,5 @@
 import { Container, Graphics, Sprite, Text, Texture } from 'pixi.js'
+import type { DamageableTarget } from './Enemy'
 
 export type AsteroidType = 'normal' | 'big' | 'fast' | 'armored'
 
@@ -19,7 +20,7 @@ const ASTEROID_CONFIG: Record<AsteroidType, AsteroidConfig> = {
   armored: { radius: 22, hp: 10, speed: 70 },
 }
 
-export class Asteroid {
+export class Asteroid implements DamageableTarget {
   readonly view: Container
 
   active = false
@@ -64,6 +65,10 @@ export class Asteroid {
       this.debugHpText.visible = false
       this.view.addChild(this.debugHpText)
     }
+  }
+
+  get position() {
+    return this.view.position
   }
 
   setVisuals(visuals: Partial<Record<AsteroidType, Texture>>) {

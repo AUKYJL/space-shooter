@@ -27,6 +27,7 @@ const config = { version: 1, asteroidPoints: { normal: 10, fast: 20, big: 30, ar
 const initial = { runId: 'one', seed: 1, scoringConfigVersion: 1, snapshot: { weaponId: 'basic_laser', damage: 1, fireRate: 2, maxHp: 5 } }
 const summary: RunSummary = { score: 110, stageReached: 1, durationMs: 20_000, endedBy: 'death', extractionCount: 0, multiplier: 1,
   collected: { coins: 10, iron: 2, gold: 0, crystal: 1 }, banked: { coins: 0, iron: 0, gold: 0, crystal: 0 },
+  enemiesDestroyed: { sentryTurret: 0 },
   destroyed: { normal: 1, fast: 1, big: 1, armored: 1 } }
 const result = { accepted: true, score: 110, bestScore: 110, grantedRewards: { coins: 0, resources: { ore: 0, crystal: 0 } } }
 function mount() {
@@ -78,6 +79,18 @@ describe('run page', () => {
     act(() => bridge.events?.emit('run:finished', summary))
     await waitFor(() => expect(finishRun).toHaveBeenCalledTimes(2))
     expect(vi.mocked(finishRun).mock.calls[1][0].runId).toBe('two')
+  })
+  it('sends enemy counts separately and never sends a client score', async () => {
+    mount()
+    await screen.findByText('one')
+    act(() => bridge.events?.emit('run:finished', { ...summary, score: 999999, enemiesDestroyed: { sentryTurret: 2 } }))
+    await waitFor(() => expect(finishRun).toHaveBeenCalledTimes(1))
+    const payload = vi.mocked(finishRun).mock.calls[0][0]
+    expect(payload.summary.enemiesDestroyed).toEqual({ sentryTurret: 2 })
+    expect(payload.summary.asteroidsDestroyed).toBe(4)
+    expect(payload.summary.destroyedByType).toEqual(summary.destroyed)
+    expect(payload).not.toHaveProperty('score')
+    expect(payload.summary).not.toHaveProperty('score')
   })
   it('blocks exit and restart while confirming, then displays a rejected result', async () => {
     let resolve!: (value: typeof result) => void

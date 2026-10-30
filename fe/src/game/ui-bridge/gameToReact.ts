@@ -39,6 +39,7 @@ export type RunSummary = {
     gold: number
     crystal: number
   }
+  enemiesDestroyed: { sentryTurret: number }
   destroyed: {
     normal: number
     fast: number

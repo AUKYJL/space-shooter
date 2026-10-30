@@ -1,5 +1,5 @@
 import type { Bullet } from '@/game/entities/Bullet'
-import type { Asteroid } from '@/game/entities/Asteroid'
+import type { DamageableTarget } from '@/game/entities/Enemy'
 import type { DangerZone } from '@/game/entities/DangerZone'
 import type { HealZone } from '@/game/entities/HealZone'
 import type { PlayerShip } from '@/game/entities/PlayerShip'
@@ -31,26 +31,30 @@ export class CollisionSystem {
     const dangerZones = this.spawns.getDangerZones()
     const healZones = this.spawns.getHealZones?.() ?? []
 
-    this.bulletsVsAsteroids(bullets, asteroids)
-    this.playerVsAsteroids(asteroids)
+    const enemies = this.spawns.getEnemies?.() ?? []
+    this.bulletsVsTargets(bullets, asteroids)
+    this.bulletsVsTargets(bullets, enemies)
+    this.playerVsTargets(asteroids)
     this.playerVsDangerZones(dtMs, dangerZones)
+    this.playerVsTargets(enemies)
+    this.enemyBulletsVsPlayer()
     this.playerVsHealZones(dtMs, healZones)
   }
 
-  private bulletsVsAsteroids(bullets: Bullet[], asteroids: Asteroid[]) {
+  private bulletsVsTargets(bullets: Bullet[], targets: readonly DamageableTarget[]) {
     for (let i = bullets.length - 1; i >= 0; i -= 1) {
       const bullet = bullets[i]
       if (!bullet.active) continue
 
-      for (let j = asteroids.length - 1; j >= 0; j -= 1) {
-        const asteroid = asteroids[j]
-        if (!asteroid.active) continue
-        if (bullet.hasHitAsteroid(asteroid)) continue
-        if (!circlesOverlap(bullet.view.position.x, bullet.view.position.y, bullet.radius, asteroid.view.position.x, asteroid.view.position.y, asteroid.radius))
+      for (let j = targets.length - 1; j >= 0; j -= 1) {
+        const target = targets[j]
+        if (!target.active) continue
+        if (bullet.hasHitTarget(target)) continue
+        if (!circlesOverlap(bullet.view.position.x, bullet.view.position.y, bullet.radius, target.position.x, target.position.y, target.radius))
           continue
 
-        asteroid.takeDamage(bullet.getDamageAtImpact())
-        bullet.registerAsteroidHit(asteroid)
+        target.takeDamage(bullet.getDamageAtImpact())
+        bullet.registerTargetHit(target)
 
         if (bullet.pierceLeft > 0) {
           bullet.pierceLeft -= 1
@@ -67,19 +71,34 @@ export class CollisionSystem {
     }
   }
 
-  private playerVsAsteroids(asteroids: Asteroid[]) {
+  private playerVsTargets(targets: readonly DamageableTarget[]) {
     if (this.invulnRemainingMs > 0) return
     if (this.player.hp <= 0) return
 
-    for (const asteroid of asteroids) {
-      if (!asteroid.active) continue
-      if (!this.player.intersectsCircle(asteroid.view.position.x, asteroid.view.position.y, asteroid.radius)) continue
+    for (const target of targets) {
+      if (!target.active) continue
+      if (!this.player.intersectsCircle(target.position.x, target.position.y, target.radius)) continue
 
-      this.player.hp = Math.max(0, this.player.hp - 1)
-      haptics.damage()
-      this.onPlayerDamaged?.()
-      this.invulnRemainingMs = this.invulnAfterHitMs
+      this.damagePlayer(1)
       return
+    }
+  }
+
+  private damagePlayer(damage: number) {
+    if (this.invulnRemainingMs > 0 || this.player.hp <= 0) return
+    this.player.hp = Math.max(0, this.player.hp - damage)
+    haptics.damage()
+    this.onPlayerDamaged?.()
+    this.invulnRemainingMs = this.invulnAfterHitMs
+  }
+
+  private enemyBulletsVsPlayer() {
+    const bullets = this.spawns.getEnemyBullets?.() ?? []
+    for (let i = bullets.length - 1; i >= 0; i -= 1) {
+      const bullet = bullets[i]
+      if (!bullet.active || !this.player.intersectsCircle(bullet.view.position.x, bullet.view.position.y, bullet.radius)) continue
+      this.spawns.despawnEnemyBullet(bullet)
+      this.damagePlayer(bullet.getDamageAtImpact())
     }
   }
 

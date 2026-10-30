@@ -1,4 +1,5 @@
-import { Container, Graphics } from 'pixi.js'
+import type { Container } from 'pixi.js'
+import { BulletView } from '@/game/views/BulletView'
 
 export class Bullet {
   readonly view: Container
@@ -10,9 +11,9 @@ export class Bullet {
   pierceLeft = 0
   private falloff: { startPx: number; endPx: number } | null = null
   private traveledPx = 0
-  private hitAsteroids: WeakSet<object> = new WeakSet()
+  private hitTargets: WeakSet<object> = new WeakSet()
 
-  private gfx: Graphics
+  private visual = new BulletView()
   private color = 0xf8f8f2
   private vx = 0
   private vy = 0
@@ -20,15 +21,12 @@ export class Bullet {
   private lifetimeMs = 650
 
   constructor() {
-    this.view = new Container()
-    this.gfx = new Graphics()
-    this.view.addChild(this.gfx)
+    this.view = this.visual.view
     this.redraw()
   }
 
   private redraw() {
-    this.gfx.clear()
-    this.gfx.circle(0, 0, this.radius).fill({ color: this.color, alpha: 0.9 })
+    this.visual.draw(this.radius, this.color)
   }
 
   spawn(options: {
@@ -51,7 +49,7 @@ export class Bullet {
     this.pierceLeft = Math.max(0, Math.floor(options.pierceLeft ?? 0))
     this.falloff = options.falloff ?? null
     this.traveledPx = 0
-    this.hitAsteroids = new WeakSet()
+    this.hitTargets = new WeakSet()
     this.lifetimeMs = options.lifetimeMs ?? 650
     const nextRadius = options.radius ?? 4
     const nextColor = options.color ?? 0xf8f8f2
@@ -107,12 +105,12 @@ export class Bullet {
     return Math.max(1, out)
   }
 
-  hasHitAsteroid(asteroid: object) {
-    return this.hitAsteroids.has(asteroid)
+  hasHitTarget(target: object) {
+    return this.hitTargets.has(target)
   }
 
-  registerAsteroidHit(asteroid: object) {
-    this.hitAsteroids.add(asteroid)
+  registerTargetHit(target: object) {
+    this.hitTargets.add(target)
   }
 
   destroy() {

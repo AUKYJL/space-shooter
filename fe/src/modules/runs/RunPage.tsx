@@ -54,6 +54,7 @@ export function RunPage() {
             asteroidsDestroyed:
               summary.destroyed.normal + summary.destroyed.fast + summary.destroyed.big + summary.destroyed.armored,
             destroyedByType: summary.destroyed,
+            enemiesDestroyed: summary.enemiesDestroyed,
             stageReached: summary.stageReached,
             coinsCollected: summary.collected.coins,
             resourcesCollected: { ore: summary.collected.iron, crystal: summary.collected.crystal },

@@ -45,6 +45,7 @@ export class RunScene implements Scene {
   private elapsedMs = 0
   private extractionCount = 0
   private multiplier = 1
+  private enemiesDestroyed = { sentryTurret: 0 }
   private destroyed: RunSummary['destroyed'] = { normal: 0, fast: 0, big: 0, armored: 0 }
   private unsubPause: Unsubscribe | null = null
   private unsubResume: Unsubscribe | null = null
@@ -88,6 +89,9 @@ export class RunScene implements Scene {
       weaponId: options.weaponId,
     })
     this.spawns = new SpawnSystem({
+      enemySpawnRule: this.scoringConfig.version >= 2 && this.scoringConfig.enemyPoints
+        ? this.scoringConfig.enemySpawnRules?.sentryTurret : undefined,
+      onEnemyDestroyed: (enemy) => { this.enemiesDestroyed[enemy.type] += 1 },
       container: this.asteroidsContainer,
       getViewportSize: options.getViewportSize,
       getPlayerPosition: () => ({ x: this.player.view.position.x, y: this.player.view.position.y }),
@@ -166,10 +170,12 @@ export class RunScene implements Scene {
       return
     }
 
+    this.spawns.setEnemyStage(this.difficulty.getStage(), this.difficulty.getStageMultiplier())
     this.input.update(dtMs)
     this.shooting.update(dtMs)
     this.spawns.update(dtMs)
     this.collisions.update(dtMs)
+    this.spawns.resolveDestroyedEnemies()
     this.loot.update(dtMs)
 
     if (this.player.hp <= 0) {
@@ -182,7 +188,7 @@ export class RunScene implements Scene {
       this.hudEmitRemainingMs = 100
       const extraction = this.extraction.getExtractionState()
       this.events.emit('run:hud-update', {
-        score: calculateScore(this.scoringConfig, this.destroyed, this.difficulty.getStage()),
+        score: calculateScore(this.scoringConfig, this.destroyed, this.difficulty.getStage(), this.enemiesDestroyed),
         stage: this.difficulty.getStage(),
         hp: this.player.hp,
         maxHp: this.player.maxHp,
@@ -204,6 +210,7 @@ export class RunScene implements Scene {
   private finishRun(endedBy: 'death' | 'extract') {
     if (this.finished) return
     this.finished = true
+    this.spawns.clearEnemies()
 
     const collected = { ...this.loot.totals }
     const banked =
@@ -217,7 +224,7 @@ export class RunScene implements Scene {
         : { coins: 0, iron: 0, gold: 0, crystal: 0 }
 
     this.events.emit('run:finished', {
-      score: calculateScore(this.scoringConfig, this.destroyed, this.difficulty.getStage()),
+      score: calculateScore(this.scoringConfig, this.destroyed, this.difficulty.getStage(), this.enemiesDestroyed),
       stageReached: this.difficulty.getStage(),
       durationMs: this.elapsedMs,
       endedBy,
@@ -226,6 +233,7 @@ export class RunScene implements Scene {
       collected,
       banked,
       destroyed: { ...this.destroyed },
+      enemiesDestroyed: { ...this.enemiesDestroyed },
     })
   }
 

@@ -18,3 +18,11 @@ describe('arcade scoring', () => {
     expect(calculateScore({ ...config, stageBonus: 7 }, { normal: 1, fast: 1, big: 1, armored: 1 }, 2)).toBe(117)
   })
 })
+
+it('adds pinned enemy points and leaves old config scoring intact', () => {
+  const destroyed = { normal: 1, fast: 1, big: 1, armored: 1 }
+  const v2 = { ...config, version: 2, enemyPoints: { sentryTurret: 100 } }
+  expect(calculateScore(v2, destroyed, 2, { sentryTurret: 1 })).toBe(310)
+  expect(calculateScore({ ...v2, enemyPoints: { sentryTurret: 7 } }, destroyed, 2, { sentryTurret: 2 })).toBe(224)
+  expect(calculateScore(config, destroyed, 2)).toBe(210)
+})

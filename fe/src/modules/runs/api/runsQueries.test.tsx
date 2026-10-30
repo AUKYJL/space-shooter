@@ -49,7 +49,8 @@ describe('run config and start', () => {
     expect(startRun).toHaveBeenCalledTimes(1)
   })
   it('refetches on 409 and retries exactly once with the new version', async () => {
-    const updated = { ...config, version: 2, stageBonus: 200 }
+    const updated = { ...config, version: 2, stageBonus: 200, enemyPoints: { sentryTurret: 100 },
+      enemySpawnRules: { sentryTurret: { minStage: 2, firstSpawnDelayMs: 2000, spawnEveryMs: 15000, maxActive: 1 } } }
     vi.mocked(getRunConfig).mockResolvedValueOnce(config).mockResolvedValueOnce(updated)
     vi.mocked(startRun).mockRejectedValueOnce(new ApiError('changed', 409, null))
       .mockResolvedValueOnce({ ...started, scoringConfigVersion: 2 })
@@ -58,9 +59,14 @@ describe('run config and start', () => {
     await act(async () => { await result.current.mutateAsync({ weaponId: 'basic_laser' }) })
     expect(startRun).toHaveBeenLastCalledWith({ weaponId: 'basic_laser', scoringConfigVersion: 2 })
     expect(startRun).toHaveBeenCalledTimes(2)
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
     const pinned = result.current.data?.scoringConfig
     client.setQueryData(qk.runConfig(), { ...config, version: 3 })
     expect(pinned).toEqual(updated)
+    updated.enemyPoints.sentryTurret = 999
+    updated.enemySpawnRules.sentryTurret.spawnEveryMs = 1
+    expect(pinned?.enemyPoints?.sentryTurret).toBe(100)
+    expect(pinned?.enemySpawnRules?.sentryTurret.spawnEveryMs).toBe(15000)
   })
   it('surfaces a second conflict without looping', async () => {
     vi.mocked(startRun).mockRejectedValue(new ApiError('changed', 409, null))
