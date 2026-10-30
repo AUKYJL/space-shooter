@@ -42,8 +42,8 @@ import type { FinishRunDto } from "../src/modules/runs/http/dto/finish-run.dto";
     .set("Authorization", `Bearer ${token}`).send(body);
   const get = (url: string) => request(app.getHttpServer()).get(url).set("Authorization", `Bearer ${token}`);
   async function start(age = 60_000) {
-    const response = await post("/runs/start", { weaponId: "basic_laser", scoringConfigVersion: 1 }).expect(201);
-    expect(response.body.scoringConfigVersion).toBe(1);
+    const response = await post("/runs/start", { weaponId: "basic_laser", scoringConfigVersion: SCORING_CONFIG.version }).expect(201);
+    expect(response.body.scoringConfigVersion).toBe(SCORING_CONFIG.version);
     await prisma.run.update({ where: { id: response.body.runId }, data: { startedAt: new Date(Date.now() - age) } });
     return response.body.runId as string;
   }
@@ -56,7 +56,7 @@ import type { FinishRunDto } from "../src/modules/runs/http/dto/finish-run.dto";
   it("authenticates config and rejects stale versions before creating a run", async () => {
     await request(app.getHttpServer()).get("/runs/config").expect(401);
     expect((await get("/runs/config").expect(200)).body).toEqual(SCORING_CONFIG);
-    await post("/runs/start", { weaponId: "basic_laser", scoringConfigVersion: 2 }).expect(409);
+    await post("/runs/start", { weaponId: "basic_laser", scoringConfigVersion: SCORING_CONFIG.version + 1 }).expect(409);
     expect(await prisma.run.count({ where: { userId } })).toBe(0);
     await post("/runs/start", { weaponId: "basic_laser" }).expect(400);
   });
@@ -64,7 +64,7 @@ import type { FinishRunDto } from "../src/modules/runs/http/dto/finish-run.dto";
     const runId = await start();
     const stored = await prisma.run.findUniqueOrThrow({ where: { id: runId } });
     expect((stored.snapshotJson as any).scoringConfig).toEqual(SCORING_CONFIG);
-    jest.spyOn(service, "getConfig").mockReturnValue({ ...SCORING_CONFIG, version: 2, asteroidPoints: { normal: 999, fast: 999, big: 999, armored: 999 }, stageBonus: 900 });
+    jest.spyOn(service, "getConfig").mockReturnValue({ ...SCORING_CONFIG, version: SCORING_CONFIG.version + 1, asteroidPoints: { normal: 999, fast: 999, big: 999, armored: 999 }, stageBonus: 900 });
     const response = await post("/runs/finish", input(runId)).expect(201);
     expect(response.body).toMatchObject({ accepted: true, score: 110, bestScore: 110 });
   });
@@ -177,4 +177,90 @@ import type { FinishRunDto } from "../src/modules/runs/http/dto/finish-run.dto";
         .set("Authorization", `Bearer ${app.get(JwtService).signUserToken(other.id)}`).send(body).expect(404);
     } finally { await prisma.user.delete({ where: { id: other.id } }); }
   });
+  it("pins turret points/rules, preserves loot, and replays the canonical result", async () => {
+    const body = input(await start());
+    Object.assign(body, { durationMs: 50000, rewardMultiplier: 1.15 });
+    body.summary.stageReached = 2;
+    body.summary.enemiesDestroyed = { sentryTurret: 2 };
+    jest.spyOn(service, "getConfig").mockReturnValue({ ...SCORING_CONFIG,
+      enemyPoints: { sentryTurret: 999 }, enemies: { ...SCORING_CONFIG.enemies, sentryTurret: {
+        ...SCORING_CONFIG.enemies.sentryTurret, spawnEveryMs: 100000,
+      } } });
+    const first = await post("/runs/finish", body).expect(201);
+    expect(first.body).toEqual({ accepted: true, score: 410, bestScore: 410,
+      grantedRewards: { coins: 11, resources: { ore: 2, crystal: 1 } } });
+    body.summary.enemiesDestroyed.sentryTurret = 99;
+    expect((await post("/runs/finish", body).expect(201)).body).toEqual(first.body);
+    expect((await get("/runs/history").expect(200)).body[0].result).toMatchObject({
+      score: 410, summary: { enemiesDestroyed: { sentryTurret: 2 } },
+    });
+  });
+  it("persists impossible turret counts as rejected without loot or record", async () => {
+    const body = input(await start());
+    body.summary.enemiesDestroyed = { sentryTurret: 1 };
+    const before = await currencies();
+    expect((await post("/runs/finish", body).expect(201)).body).toMatchObject({ accepted: false, bestScore: 0,
+      grantedRewards: { coins: 0, resources: { ore: 0, crystal: 0 } } });
+    expect(await currencies()).toEqual(before);
+  });
+  it("retains version 1 scoring and rejects enemy kills against legacy snapshots", async () => {
+    const v1 = { version: 1, asteroidPoints: SCORING_CONFIG.asteroidPoints, stageBonus: 100 };
+    const body = input(await start());
+    await prisma.run.update({ where: { id: body.runId }, data: { snapshotJson: { scoringConfig: v1 } } });
+    expect((await post("/runs/finish", body).expect(201)).body).toMatchObject({ accepted: true, score: 110 });
+    const forged = input(await start());
+    await prisma.run.update({ where: { id: forged.runId }, data: { snapshotJson: { scoringConfig: v1 } } });
+    Object.assign(forged, { durationMs: 50000, rewardMultiplier: 1.15 });
+    Object.assign(forged.summary, { stageReached: 2, enemiesDestroyed: { sentryTurret: 1 } });
+    expect((await post("/runs/finish", forged).expect(201)).body).toMatchObject({ accepted: false, score: 210, bestScore: 110 });
+  });
+
+  it("pins drone score, persists the count and replays without additional rewards", async () => {
+    const body = input(await start(100_000));
+    Object.assign(body, { durationMs: 80_000, rewardMultiplier: 1.3 });
+    Object.assign(body.summary, { stageReached: 3, enemiesDestroyed: { sentryTurret: 0, shieldDrone: 2 } });
+    jest.spyOn(service, "getConfig").mockReturnValue({ ...SCORING_CONFIG,
+      enemyPoints: { sentryTurret: 999, shieldDrone: 999 } });
+    const first = await post("/runs/finish", body).expect(201);
+    expect(first.body).toMatchObject({ accepted: true, score: 410, bestScore: 410 });
+    const after = await currencies();
+    body.summary.enemiesDestroyed!.shieldDrone = 99;
+    expect((await post("/runs/finish", body).expect(201)).body).toEqual(first.body);
+    expect(await currencies()).toEqual(after);
+    expect((await get("/runs/history").expect(200)).body[0].result).toMatchObject({
+      score: 410, summary: { enemiesDestroyed: { sentryTurret: 0, shieldDrone: 2 } },
+    });
+  });
+  it("rejects drone kills against a version 2 snapshot without rewards or record", async () => {
+    const body = input(await start(100_000));
+    const v2 = { version: 2, asteroidPoints: SCORING_CONFIG.asteroidPoints, stageBonus: 100, enemyPoints: { sentryTurret: 100 },
+      enemySpawnRules: { sentryTurret: SCORING_CONFIG.enemies.sentryTurret } };
+    await prisma.run.update({ where: { id: body.runId }, data: { snapshotJson: { scoringConfig: v2 } } });
+    Object.assign(body, { durationMs: 80_000, rewardMultiplier: 1.3 });
+    Object.assign(body.summary, { stageReached: 3, enemiesDestroyed: { sentryTurret: 0, shieldDrone: 1 } });
+    const before = await currencies();
+    expect((await post("/runs/finish", body).expect(201)).body).toMatchObject({ accepted: false, score: 310, bestScore: 0 });
+    expect(await currencies()).toEqual(before);
+  });
+
+  it("returns and pins the complete enemy config, using its exact stage for validation", async () => {
+    const custom = { ...SCORING_CONFIG, enemies: {
+      sentryTurret: { ...SCORING_CONFIG.enemies.sentryTurret, minStage: 1, firstSpawnDelayMs: 0,
+        hp: 3, activeColor: 0x123456, bullet: { ...SCORING_CONFIG.enemies.sentryTurret.bullet, damage: 2 } },
+      shieldDrone: { ...SCORING_CONFIG.enemies.shieldDrone, minStage: 1, spawnChance: 1, damageReduction: 0.5 },
+    } };
+    const deployed = jest.spyOn(service, "getConfig").mockReturnValue(custom);
+    const response = await post("/runs/start", { weaponId: "basic_laser", scoringConfigVersion: custom.version }).expect(201);
+    expect(response.body.snapshot.scoringConfig).toEqual(custom);
+    expect(response.body.snapshot.scoringConfig).not.toHaveProperty("enemySpawnRules");
+    const runId = response.body.runId;
+    await prisma.run.update({ where: { id: runId }, data: { startedAt: new Date(Date.now() - 60000) } });
+    deployed.mockReturnValue({ ...SCORING_CONFIG, version: custom.version + 1 });
+    const stored = await prisma.run.findUniqueOrThrow({ where: { id: runId } });
+    expect((stored.snapshotJson as any).scoringConfig).toEqual(custom);
+    const body = input(runId);
+    body.summary.enemiesDestroyed = { sentryTurret: 1, shieldDrone: 1 };
+    expect((await post("/runs/finish", body).expect(201)).body).toMatchObject({ accepted: true, score: 260, bestScore: 260 });
+  });
+
 });

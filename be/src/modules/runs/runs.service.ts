@@ -84,12 +84,13 @@ export class RunsService {
     const bonus = sumUpgradeEffects(ownedCatalog.map((u) => u.effectJson));
 
     const seed = randomInt(1, 1_000_000_000);
+    const START_HP = 1000;
     const snapshot: RunSnapshot = {
       scoringConfig,
       weaponId,
       damage: weapon.baseDamage + bonus.damage,
       fireRate: weapon.baseFireRate + bonus.fireRate,
-      maxHp: 5 + bonus.maxHp,
+      maxHp: START_HP + bonus.maxHp,
     };
 
     const run = await this.prisma.run.create({
@@ -121,9 +122,9 @@ export class RunsService {
       if (run.status !== "started" || run.finishedAt) return savedResponse();
 
       const config = (run.snapshotJson as unknown as Partial<RunSnapshot>).scoringConfig;
-      const score = config ? calculateScore(config, input.summary.destroyedByType, input.summary.stageReached) : null;
+      const score = config ? calculateScore(config, input.summary.destroyedByType, input.summary.stageReached, input.summary.enemiesDestroyed) : null;
       const now = new Date();
-      const reasons = getSuspicionReasons(input, run.startedAt, now);
+      const reasons = getSuspicionReasons(input, run.startedAt, now, config);
       if (!config) reasons.push("missing scoring snapshot");
       const accepted = reasons.length === 0;
       const multiplier = 1 + (input.summary.stageReached - 1) * 0.15;

@@ -1,5 +1,5 @@
 import { Type } from "class-transformer";
-import { IsDefined, IsIn, IsInt, IsNumber, IsObject, IsOptional, IsUUID, Max, Min, ValidateNested } from "class-validator";
+import { IsDefined, IsIn, IsInt, IsNumber, IsObject, IsOptional, IsUUID, Max, Min, ValidateNested, ValidateIf } from "class-validator";
 
 class ResourcesCollectedDto {
   @IsInt() @Min(0) @Max(2_147_483_647)
@@ -23,7 +23,20 @@ class DestroyedByTypeDto {
   armored!: number;
 }
 
+class EnemiesDestroyedDto {
+  @ValidateIf((_object, value) => value !== undefined)
+  @IsInt() @Min(0) @Max(2_147_483_647)
+  shieldDrone?: number;
+
+  @IsInt() @Min(0) @Max(2_147_483_647)
+  sentryTurret!: number;
+}
+
 class RunSummaryDto {
+  @ValidateIf((_object, value) => value !== undefined)
+  @IsDefined() @IsObject() @ValidateNested() @Type(() => EnemiesDestroyedDto)
+  enemiesDestroyed?: EnemiesDestroyedDto;
+
   @IsInt() @Min(0) @Max(2_147_483_647)
   asteroidsDestroyed!: number;
 
