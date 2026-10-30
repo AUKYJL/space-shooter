@@ -34,7 +34,7 @@ npm run start:dev
 
 - Start backend (`npm run start:dev`) on `BE_PORT` (default `4000`).
 - In `fe/.env.local`, set `VITE_API_BASE_URL=http://localhost:4000`.
-- Start frontend (`cd fe && npm run dev`) and open `/login-dev` to obtain a dev JWT via `POST /auth/login-dev`.
+- Start frontend (`cd fe && npm run dev`) and open `/login` to register via `POST /auth/register` or sign in via `POST /auth/login`.
 
 ## Swagger (dev)
 

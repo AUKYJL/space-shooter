@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { Test } from "@nestjs/testing";
 import { INestApplication } from "@nestjs/common";
 import { AppModule } from "../src/app.module";
@@ -32,7 +33,7 @@ describe("models", () => {
       throw new Error("Prisma not initialized");
     }
 
-    const user = await prisma.user.create({ data: {} });
+    const user = await prisma.user.create({ data: { username: randomUUID(), passwordHash: "unused-in-token-tests" } });
     const currencies = await prisma.userCurrencies.create({
       data: { userId: user.id, coins: 0, donateCoins: 0, ore: 0, crystal: 0 },
     });

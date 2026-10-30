@@ -1,7 +1,8 @@
 export const endpoints = {
   health: () => '/health',
   auth: {
-    loginDev: () => '/auth/login-dev',
+    login: () => '/auth/login',
+    register: () => '/auth/register',
   },
   me: () => '/me',
   meCurrencies: () => '/me/currencies',
@@ -9,6 +10,7 @@ export const endpoints = {
   loadout: () => '/loadout',
   loadoutWeapon: () => '/loadout/weapon',
   runs: {
+    config: () => '/runs/config',
     start: () => '/runs/start',
     finish: () => '/runs/finish',
     history: () => '/runs/history',

@@ -9,8 +9,15 @@ import {
   DrawerTitle,
 } from '@/shared/ui/drawer'
 import { ResourceIcon } from '@/shared/ui/ResourceIcon'
+import type { FinishRunResponse } from './api/runsApi'
 
-export function RunResultDrawer() {
+export function RunResultDrawer(props: {
+  result?: FinishRunResponse
+  pending: boolean
+  error: boolean
+  onRetry: () => void
+  onPlayAgain: () => void
+}) {
   const navigate = useNavigate()
   const lastRun = useAppStore((s) => s.lastRunSummary)
   const setLastRunSummary = useAppStore((s) => s.setLastRunSummary)
@@ -23,6 +30,8 @@ export function RunResultDrawer() {
     (debugOpen
       ? {
           durationMs: 72_000,
+          score: 0,
+          stageReached: 1,
           endedBy: 'extract' as const,
           extractionCount: 12,
           multiplier: 2.5,
@@ -35,7 +44,7 @@ export function RunResultDrawer() {
   const open = Boolean(model)
   if (!model) return null
 
-  const collected = model.collected
+  const rewards = props.result?.grantedRewards
 
   return (
     <Drawer open={open} dismissible={false}>
@@ -46,8 +55,16 @@ export function RunResultDrawer() {
       >
         <DrawerTitle className="sr-only">Run Complete</DrawerTitle>
         <DrawerDescription className="sr-only">Run result summary</DrawerDescription>
-        <div className="mx-auto flex h-full w-full max-w-[390px] flex-col gap-8 px-6 pt-[calc(40px+env(safe-area-inset-top))] pb-[calc(40px+env(safe-area-inset-bottom))]">
+        <div className="mx-auto flex h-full w-full max-w-[390px] flex-col gap-6 overflow-y-auto px-6 pt-[calc(40px+env(safe-area-inset-top))] pb-[calc(40px+env(safe-area-inset-bottom))] [&>div]:shrink-0">
           <div className="text-center text-[36px] font-extrabold tracking-[1px] text-neon-cyan">Run Complete</div>
+
+          <div className="text-center" aria-live="polite">
+            <div className="text-sm text-text-secondary">Score</div>
+            <div className="text-3xl font-bold">{props.result ? (props.result.score?.toLocaleString() ?? '—') : model.score.toLocaleString()}</div>
+            {props.pending ? <div>Confirming result…</div> : null}
+            {props.error ? <div>Could not save result. <button className="underline" onClick={props.onRetry}>Retry</button></div> : null}
+            {props.result?.accepted === false ? <div>Result rejected. No rewards or record update.</div> : null}
+          </div>
 
           <div className="rounded-[14px] bg-bg-secondary p-5">
             <div className="grid grid-cols-3 gap-3">
@@ -56,7 +73,7 @@ export function RunResultDrawer() {
                   <ResourceIcon id="coins" size={12} />
                   <span>Total Coins</span>
                 </div>
-                <div className="mt-1 text-xl font-bold text-accent-gold">{collected.coins.toLocaleString()}</div>
+                <div className="mt-1 text-xl font-bold text-accent-gold">{rewards ? rewards.coins.toLocaleString() : '—'}</div>
               </div>
               <div className="text-center">
                 <div className="text-[11px] text-text-secondary">Multiplier</div>
@@ -68,12 +85,11 @@ export function RunResultDrawer() {
               </div>
             </div>
 
-            <div className="mt-4 text-xs font-semibold text-white">Resources Collected</div>
+            <div className="mt-4 text-xs font-semibold text-white">Resources Granted</div>
 
             <div className="mt-4 space-y-2">
-              <ResourceRow iconResourceId="crystals" label="Crystals" value={collected.crystal} />
-              <ResourceRow iconResourceId="iron" label="Iron" value={collected.iron} />
-              <ResourceRow colorClassName="bg-accent-gold" label="Gold" value={collected.gold} />
+              <ResourceRow iconResourceId="crystals" label="Crystals" value={rewards?.resources.crystal} />
+              <ResourceRow iconResourceId="iron" label="Iron" value={rewards?.resources.ore} />
             </div>
           </div>
 
@@ -81,6 +97,7 @@ export function RunResultDrawer() {
 
           <div className="w-full space-y-3">
             <Button
+              disabled={props.pending}
               size="xl"
               className="h-14 w-full rounded-[14px] bg-neon-cyan text-base font-bold text-bg-primary hover:bg-neon-cyan/90"
               onClick={() => {
@@ -88,15 +105,15 @@ export function RunResultDrawer() {
                 navigate({ to: '/' })
               }}
             >
-              Collect &amp; Exit
+              Exit to Menu
             </Button>
 
             <Button
+              disabled={props.pending || !props.result}
               size="xl"
               className="h-14 w-full rounded-[14px] border-[1.5px] border-neon-purple bg-bg-tertiary text-base font-bold text-neon-purple hover:bg-bg-tertiary/80"
               onClick={() => {
-                setLastRunSummary(null)
-                navigate({ to: '/run' })
+                props.onPlayAgain()
               }}
             >
               Play Again
@@ -112,7 +129,7 @@ function ResourceRow(props: {
   colorClassName?: string
   iconResourceId?: 'iron' | 'crystals'
   label: string
-  value: number
+  value?: number
 }) {
   return (
     <div className="flex items-center gap-2 px-2">
@@ -122,7 +139,7 @@ function ResourceRow(props: {
         <div className={`size-5 rounded-[4px] ${props.colorClassName ?? ''}`} aria-hidden="true" />
       )}
       <div className="text-[12px] text-text-secondary">
-        {props.label} x{props.value.toLocaleString()}
+        {props.label} {props.value === undefined ? '—' : `x${props.value.toLocaleString()}`}
       </div>
     </div>
   )

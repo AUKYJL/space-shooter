@@ -1,9 +1,10 @@
+import type { WeaponId } from '@/shared/lib/weapons'
 import { requestJson } from '@/shared/api/client'
 import { endpoints } from '@/shared/api/endpoints'
 
 export type LoadoutResponse = {
   userId: string
-  selectedWeaponId: string
+  selectedWeaponId: WeaponId
 }
 
 export function getLoadout() {

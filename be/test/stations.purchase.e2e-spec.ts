@@ -1,13 +1,11 @@
-import request from "supertest";
+import * as request from "supertest";
 import { Test } from "@nestjs/testing";
 import { INestApplication } from "@nestjs/common";
 import { AppModule } from "../src/app.module";
+import { JwtService } from "../src/infra/jwt/jwt.service";
 import { PrismaService } from "../src/infra/prisma/prisma.service";
 
-async function login(app: INestApplication) {
-  const res = await request(app.getHttpServer()).post("/auth/login-dev").send({ username: "dev" });
-  return res.body.accessToken as string;
-}
+import { registerTestUser as login } from "./helpers/auth";
 
 describe("stations purchase", () => {
   let app: INestApplication | undefined;
@@ -50,7 +48,7 @@ describe("stations purchase", () => {
       },
     });
 
-    const user = await prisma.user.findFirst({ where: { username: "dev" } });
+    const user = await prisma.user.findUnique({ where: { id: app.get(JwtService).verify(token).sub } });
     if (!user) {
       throw new Error("User not found");
     }

@@ -1,6 +1,7 @@
 import type { EventBus, Unsubscribe } from '@/game/core/EventBus'
 
 export type RunHudState = {
+  score: number
   stage: number
   hp: number
   maxHp: number
@@ -20,6 +21,8 @@ export type RunHudState = {
 export type RunEndedBy = 'death' | 'extract'
 
 export type RunSummary = {
+  score: number
+  stageReached: number
   durationMs: number
   endedBy: RunEndedBy
   extractionCount: number

@@ -1,4 +1,6 @@
 import axios from "axios";
+import { createHttpClient } from "./httpClient";
+import { useSessionStore } from "@/shared/store/sessionStore";
 
 export class ApiError extends Error {
   status: number;
@@ -22,34 +24,27 @@ export type RequestJsonArgs = {
   method: "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
   url: string;
   data?: unknown;
+  withCredentials?: boolean;
+  skipAuth?: boolean;
 };
 
-let httpClient: ReturnType<
-  typeof import("./httpClient").createHttpClient
-> | null = null;
-
-async function getHttpClient() {
-  if (httpClient) return httpClient;
-  const { createHttpClient } = await import("./httpClient");
-  const { useSessionStore } = await import("@/shared/store/sessionStore");
-
-  httpClient = createHttpClient({
-    baseURL: getApiBaseUrl(),
-    getToken: () => useSessionStore.getState().accessToken,
-  });
-
-  return httpClient;
-}
+const httpClient = createHttpClient({
+  baseURL: getApiBaseUrl(),
+  getToken: () => useSessionStore.getState().accessToken,
+  setToken: (token) => useSessionStore.getState().setAccessToken(token),
+  onUnauthorized: () => useSessionStore.getState().clearSession(),
+});
 
 export async function requestJson<T>({
   method,
   url,
   data,
+  withCredentials,
+  skipAuth,
 }: RequestJsonArgs): Promise<T> {
-  const client = await getHttpClient();
-
   try {
-    const res = await client.request<T>({ method, url, data });
+    const config = { method, url, data, withCredentials, skipAuth };
+    const res = await httpClient.request<T>(config);
     return res.data;
   } catch (err) {
     if (!axios.isAxiosError(err)) throw err;

@@ -4,6 +4,7 @@ export const qk = {
   progression: () => ['me', 'progression'] as const,
   loadout: () => ['loadout'] as const,
   runsHistory: () => ['runs', 'history'] as const,
+  runConfig: () => ['runs', 'config'] as const,
   upgrades: () => ['upgrades'] as const,
   stationsCatalog: () => ['stations', 'catalog'] as const,
   stationsSlots: () => ['stations', 'slots'] as const,

@@ -9,6 +9,7 @@ describe('RunScene', () => {
     const canvas = document.createElement('canvas')
     const events = new EventBus<RunBridgeEventMap>()
     const scene = new RunScene({
+      scoringConfig: { version: 1, asteroidPoints: { normal: 10, fast: 20, big: 30, armored: 50 }, stageBonus: 100 },
       canvas,
       getViewportSize: () => ({ width: 800, height: 600 }),
       events,

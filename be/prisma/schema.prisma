@@ -8,9 +8,10 @@ datasource db {
 }
 
 model User {
+  bestScore  Int      @default(0)
   id         String   @id @default(uuid())
-  telegramId String?  @unique
-  username   String?
+  username   String   @unique
+  passwordHash String
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
@@ -21,6 +22,18 @@ model User {
   runs           Run[]
   stationUnlocks UserStationUnlock[]
   stationSlots   UserStationSlot[]
+  refreshSessions RefreshSession[]
+}
+
+model RefreshSession {
+  id        String   @id @default(uuid())
+  userId    String
+  tokenHash String
+  expiresAt DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model UserCurrencies {
@@ -113,6 +126,7 @@ model Run {
 }
 
 model RunResult {
+  score             Int?
   runId             String @id
   summaryJson       Json
   grantedRewardsJson Json

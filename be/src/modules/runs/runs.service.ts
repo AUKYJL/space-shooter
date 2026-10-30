@@ -1,5 +1,7 @@
 import {
   BadRequestException,
+  ConflictException,
+  Logger,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -7,9 +9,13 @@ import {
 import { randomInt } from "crypto";
 import { PrismaService } from "../../infra/prisma/prisma.service";
 import { type WeaponId } from "../../common/ids";
+import type { Prisma } from "@prisma/client";
+import { FinishRunDto } from "./http/dto/finish-run.dto";
+import { calculateScore, getSuspicionReasons, SCORING_CONFIG, type ScoringConfig } from "./scoring";
 import { type JsonValue } from "@prisma/client/runtime/library";
 
 type RunSnapshot = {
+  scoringConfig: ScoringConfig;
   weaponId: WeaponId;
   damage: number;
   fireRate: number;
@@ -32,7 +38,17 @@ const CRYSTAL_CAP = 1_000;
 export class RunsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async startRun(userId: string, weaponId: WeaponId) {
+  private readonly logger = new Logger(RunsService.name);
+
+  getConfig(): ScoringConfig {
+    return SCORING_CONFIG;
+  }
+
+  async startRun(userId: string, weaponId: WeaponId, scoringConfigVersion: number) {
+    const scoringConfig = this.getConfig();
+    if (scoringConfigVersion !== scoringConfig.version) {
+      throw new ConflictException("Scoring config changed; reload /runs/config");
+    }
     const owned = await this.prisma.userWeapon.findUnique({
       where: { userId_weaponId: { userId, weaponId } },
       select: { unlocked: true },
@@ -69,6 +85,7 @@ export class RunsService {
 
     const seed = randomInt(1, 1_000_000_000);
     const snapshot: RunSnapshot = {
+      scoringConfig,
       weaponId,
       damage: weapon.baseDamage + bonus.damage,
       fireRate: weapon.baseFireRate + bonus.fireRate,
@@ -86,109 +103,68 @@ export class RunsService {
       select: { id: true },
     });
 
-    return { runId: run.id, seed, snapshot };
+    return { runId: run.id, seed, snapshot, scoringConfigVersion: scoringConfig.version };
   }
 
-  async finishRun(
-    userId: string,
-    input: {
-      runId: string;
-      durationMs: number;
-      endedBy: string;
-      extractionCount: number;
-      rewardMultiplier: number;
-      summary: any;
-    },
-  ) {
-    if (input.durationMs < 1_000 || input.durationMs > 3 * 60 * 60 * 1000) {
-      throw new BadRequestException("durationMs out of range");
-    }
+  async finishRun(userId: string, input: FinishRunDto) {
+    return this.prisma.$transaction(async (tx) => {
+      const run = await tx.run.findFirst({ where: { id: input.runId, userId } });
+      if (!run) throw new NotFoundException("Run not found");
 
-    const run = await this.prisma.run.findFirst({
-      where: { id: input.runId, userId },
-      select: { id: true, status: true, finishedAt: true },
-    });
-    if (!run) {
-      throw new NotFoundException("Run not found");
-    }
-    if (run.status !== "started" || run.finishedAt) {
-      throw new BadRequestException("Run already finished");
-    }
+      const savedResponse = async () => {
+        const result = await tx.runResult.findUnique({ where: { runId: run.id } });
+        if (!result) throw new ConflictException("Run has no completed result");
+        const user = await tx.user.findUniqueOrThrow({ where: { id: userId }, select: { bestScore: true } });
+        return { accepted: result.accepted, score: result.score, bestScore: user.bestScore,
+          grantedRewards: result.grantedRewardsJson as unknown as GrantedRewards };
+      };
+      if (run.status !== "started" || run.finishedAt) return savedResponse();
 
-    const summary = input.summary ?? {};
-    const multiplier = Number.isFinite(input.rewardMultiplier)
-      ? input.rewardMultiplier
-      : 1;
-
-    const coinsCollected =
-      typeof summary.coinsCollected === "number" ? summary.coinsCollected : 0;
-    const oreCollected =
-      typeof summary.resourcesCollected?.ore === "number"
-        ? summary.resourcesCollected.ore
-        : 0;
-    const crystalCollected =
-      typeof summary.resourcesCollected?.crystal === "number"
-        ? summary.resourcesCollected.crystal
-        : 0;
-
-    const grantedRewards: GrantedRewards = {
-      coins: Math.max(
-        0,
-        Math.min(Math.floor(coinsCollected * multiplier), COINS_CAP),
-      ),
-      resources: {
-        ore: Math.max(
-          0,
-          Math.min(Math.floor(oreCollected * multiplier), ORE_CAP),
-        ),
-        crystal: Math.max(
-          0,
-          Math.min(Math.floor(crystalCollected * multiplier), CRYSTAL_CAP),
-        ),
-      },
-    };
-
-    const accepted = true;
-
-    await this.prisma.$transaction(async (tx) => {
-      await tx.run.update({
-        where: { id: run.id },
-        data: {
-          finishedAt: new Date(),
-          endedBy: input.endedBy,
-          extractionCount: input.extractionCount,
-          rewardMultiplier: input.rewardMultiplier,
-          status: "finished",
+      const config = (run.snapshotJson as unknown as Partial<RunSnapshot>).scoringConfig;
+      const score = config ? calculateScore(config, input.summary.destroyedByType, input.summary.stageReached) : null;
+      const now = new Date();
+      const reasons = getSuspicionReasons(input, run.startedAt, now);
+      if (!config) reasons.push("missing scoring snapshot");
+      const accepted = reasons.length === 0;
+      const multiplier = 1 + (input.summary.stageReached - 1) * 0.15;
+      const grantLoot = accepted && input.endedBy === "extract";
+      const grantedRewards: GrantedRewards = {
+        coins: grantLoot ? Math.min(Math.floor(input.summary.coinsCollected * multiplier), COINS_CAP) : 0,
+        resources: {
+          ore: grantLoot ? Math.min(Math.floor(input.summary.resourcesCollected.ore * multiplier), ORE_CAP) : 0,
+          crystal: grantLoot ? Math.min(Math.floor(input.summary.resourcesCollected.crystal * multiplier), CRYSTAL_CAP) : 0,
         },
+      };
+
+      // The conditional UPDATE locks the row. Concurrent losers wait for the winner's
+      // commit and then read its canonical result under PostgreSQL READ COMMITTED.
+      const claimed = await tx.run.updateMany({
+        where: { id: run.id, userId, status: "started", finishedAt: null },
+        data: { finishedAt: now, endedBy: input.endedBy, extractionCount: input.extractionCount,
+          rewardMultiplier: input.rewardMultiplier, status: "finished" },
       });
+      if (claimed.count === 0) return savedResponse();
 
       await tx.runResult.create({
-        data: {
-          runId: run.id,
-          summaryJson: summary,
-          grantedRewardsJson: grantedRewards,
-          accepted,
-          suspiciousScore: 0,
-        },
+        data: { runId: run.id, score, accepted, suspiciousScore: reasons.length,
+          summaryJson: { ...input.summary, validationReasons: reasons } as unknown as Prisma.InputJsonValue,
+          grantedRewardsJson: grantedRewards },
       });
-
-      await tx.userCurrencies.upsert({
-        where: { userId },
-        create: {
-          userId,
-          coins: grantedRewards.coins,
-          ore: grantedRewards.resources.ore,
-          crystal: grantedRewards.resources.crystal,
-        },
-        update: {
-          coins: { increment: grantedRewards.coins },
-          ore: { increment: grantedRewards.resources.ore },
-          crystal: { increment: grantedRewards.resources.crystal },
-        },
-      });
+      if (grantLoot) {
+        await tx.userCurrencies.upsert({
+          where: { userId },
+          create: { userId, coins: grantedRewards.coins, ore: grantedRewards.resources.ore,
+            crystal: grantedRewards.resources.crystal },
+          update: { coins: { increment: grantedRewards.coins }, ore: { increment: grantedRewards.resources.ore },
+            crystal: { increment: grantedRewards.resources.crystal } },
+        });
+      }
+      if (accepted && score !== null) {
+        await tx.user.updateMany({ where: { id: userId, bestScore: { lt: score } }, data: { bestScore: score } });
+      }
+      if (!accepted) this.logger.warn(`Run ${run.id} rejected: ${reasons.join(", ")}`);
+      return savedResponse();
     });
-
-    return { accepted, grantedRewards };
   }
 
   async getHistory(userId: string, limit = 20) {
@@ -209,6 +185,7 @@ export class RunsService {
         result: {
           select: {
             accepted: true,
+            score: true,
             summaryJson: true,
             grantedRewardsJson: true,
           },
@@ -229,6 +206,7 @@ export class RunsService {
       result: r.result
         ? {
             accepted: r.result.accepted,
+            score: r.result.score,
             summary: r.result.summaryJson,
             grantedRewards: r.result.grantedRewardsJson,
           }

@@ -25,7 +25,7 @@ Frontend talks to the NestJS backend in `be/` via TanStack Query + axios.
 - Run frontend:
   - `cd fe && npm run dev`
 - Open:
-  - `http://localhost:5173/login-dev` → enter any username → login
+  - `http://localhost:5173/login` → register with a nickname and password → login
 
 Notes:
 - Auth uses `Authorization: Bearer <token>` (stored in Zustand `sessionStore`).

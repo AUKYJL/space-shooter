@@ -4,6 +4,7 @@ import { Button } from '@/shared/ui/button'
 import { ResourceIcon } from '@/shared/ui/ResourceIcon'
 
 export type RunHudModel = {
+  score: number
   stage: number
   hp: number
   maxHp: number
@@ -62,6 +63,7 @@ export function RunHud(props: {
           </div>
 
           <div className="justify-self-center text-center">
+            <div className="text-sm font-bold tabular-nums text-white">Score {props.model.score.toLocaleString()}</div>
             <div className="text-[10px] font-semibold tracking-[0.22em] text-neon-cyan/90">
               STAGE {props.model.stage}
             </div>

@@ -5,10 +5,10 @@ import { PrismaService } from "../../infra/prisma/prisma.service";
 export class UsersService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getProfile(userId: string): Promise<{ id: string; username: string | null; createdAt: Date }> {
+  async getProfile(userId: string): Promise<{ id: string; username: string; createdAt: Date; bestScore: number }> {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, username: true, createdAt: true },
+      select: { id: true, username: true, createdAt: true, bestScore: true },
     });
     if (!user) {
       throw new NotFoundException("User not found");

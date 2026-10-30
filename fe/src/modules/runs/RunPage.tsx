@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { EventBus } from '@/game/core/EventBus'
 import { onRunHudUpdate, onRunFinished, type RunBridgeEventMap, type RunHudState } from '@/game/ui-bridge/gameToReact'
@@ -9,6 +9,7 @@ import { RunHud } from '@/modules/runs/RunHud'
 import { RunResultDrawer } from '@/modules/runs/RunResultDrawer'
 import { useAppStore } from '@/shared/store/appStore'
 import { useFinishRunMutation, useStartRunMutation } from '@/modules/runs/api/runsQueries'
+import type { FinishRunRequest, ScoringConfig, StartRunResponse } from './api/runsApi'
 import { ApiError } from '@/shared/api/client'
 
 export function RunPage() {
@@ -16,44 +17,24 @@ export function RunPage() {
   const setLastRunSummary = useAppStore((s) => s.setLastRunSummary)
   const weaponId = useAppStore((s) => s.selectedWeaponId)
   const [paused, setPaused] = useState(false)
-  const [runInit, setRunInit] = useState<{
-    runId: string
-    seed: number
-    snapshot: { weaponId: string; damage: number; fireRate: number; maxHp: number }
-  } | null>(null)
+  const [runInit, setRunInit] = useState<(StartRunResponse & { scoringConfig: ScoringConfig }) | null>(null)
+  const finishPayload = useRef<FinishRunRequest | null>(null)
 
   const startRunMutation = useStartRunMutation()
   const finishRunMutation = useFinishRunMutation()
   const { mutate: startRun } = startRunMutation
-  const [hud, setHud] = useState<RunHudState>({
-    stage: 1,
-    hp: 10,
-    maxHp: 10,
-    charge: 0,
-    multiplier: 1,
-    coins: 0,
-    iron: 0,
-    gold: 0,
-    crystal: 0,
-    extractionAvailable: false,
-    extractionInZone: false,
-    extractionBaseTtlMs: 0,
-    extractionProgressMs: 0,
-    extractionRequiredMs: 3000,
-  })
+  const [hud, setHud] = useState<RunHudState>(initialHud)
 
   useEffect(() => onRunHudUpdate(events, setHud), [events])
 
   useEffect(() => {
     if (!weaponId) return
-    startRun(
-      { weaponId },
-      {
-        onSuccess: (res) => {
-          setRunInit(res)
-        },
-      },
-    )
+
+    const timer = setTimeout(() => {
+      startRun({ weaponId }, { onSuccess: setRunInit })
+    }, 0)
+
+    return () => clearTimeout(timer)
   }, [startRun, weaponId])
 
   useEffect(
@@ -63,7 +44,7 @@ export function RunPage() {
         setPaused(false)
 
         if (!runInit) return
-        finishRunMutation.mutate({
+        const payload: FinishRunRequest = {
           runId: runInit.runId,
           durationMs: Math.round(summary.durationMs),
           endedBy: summary.endedBy,
@@ -72,16 +53,27 @@ export function RunPage() {
           summary: {
             asteroidsDestroyed:
               summary.destroyed.normal + summary.destroyed.fast + summary.destroyed.big + summary.destroyed.armored,
-            largeAsteroidsDestroyed: summary.destroyed.big,
-            armoredAsteroidsDestroyed: summary.destroyed.armored,
-            rareAsteroidsDestroyed: summary.destroyed.fast,
+            destroyedByType: summary.destroyed,
+            stageReached: summary.stageReached,
             coinsCollected: summary.collected.coins,
             resourcesCollected: { ore: summary.collected.iron, crystal: summary.collected.crystal },
           },
-        })
+        }
+        finishPayload.current = payload
+        finishRunMutation.mutate(payload)
       }),
     [events, finishRunMutation, runInit, setLastRunSummary],
   )
+
+  const restart = () => {
+    setRunInit(null)
+    setHud(initialHud())
+    setPaused(false)
+    setLastRunSummary(null)
+    finishPayload.current = null
+    finishRunMutation.reset()
+    startRun({ weaponId }, { onSuccess: setRunInit })
+  }
 
   const startError = startRunMutation.error
   const startErrorMessage =
@@ -90,12 +82,13 @@ export function RunPage() {
   return (
     <div className="relative h-full w-full bg-black">
       <div className="absolute inset-0 z-0">
-        {runInit ? <GameCanvas events={events} init={runInit} /> : null}
+        {runInit ? <GameCanvas key={runInit.runId} events={events} init={runInit} /> : null}
       </div>
       {!runInit ? (
         <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/60">
           <div className="rounded-xl border border-white/10 bg-bg-secondary px-4 py-3 text-sm">
             {startErrorMessage ? `Failed to start run: ${startErrorMessage}` : 'Starting run…'}
+            {startErrorMessage ? <button className="mt-3 block underline" onClick={restart}>Retry</button> : null}
           </div>
         </div>
       ) : null}
@@ -115,7 +108,22 @@ export function RunPage() {
           emitRunResume(events)
         }}
       />
-      <RunResultDrawer />
+      <RunResultDrawer
+        result={finishRunMutation.data}
+        pending={finishRunMutation.isPending}
+        error={finishRunMutation.isError}
+        onRetry={() => { if (finishPayload.current) finishRunMutation.mutate(finishPayload.current) }}
+        onPlayAgain={restart}
+      />
     </div>
   )
+}
+
+function initialHud(): RunHudState {
+  return {
+    score: 0, stage: 1, hp: 10, maxHp: 10, charge: 0, multiplier: 1,
+    coins: 0, iron: 0, gold: 0, crystal: 0,
+    extractionAvailable: false, extractionInZone: false, extractionBaseTtlMs: 0,
+    extractionProgressMs: 0, extractionRequiredMs: 3000,
+  }
 }

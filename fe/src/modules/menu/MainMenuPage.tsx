@@ -4,11 +4,12 @@ import { useAppStore } from '@/shared/store/appStore'
 import { useEffect } from 'react'
 import { WEAPON_CATALOG } from '@/shared/lib/weapons'
 import { ResourceIcon } from '@/shared/ui/ResourceIcon'
-import { useCurrenciesQuery, useProgressionQuery } from '@/modules/profile/api/profileQueries'
+import { useCurrenciesQuery, useMeQuery, useProgressionQuery } from '@/modules/profile/api/profileQueries'
 
 export function MainMenuPage() {
   const selectedWeaponId = useAppStore((s) => s.selectedWeaponId)
   const setSelectedWeaponId = useAppStore((s) => s.setSelectedWeaponId)
+  const profile = useMeQuery()
   const currencies = useCurrenciesQuery()
   const progression = useProgressionQuery()
   const selectedWeaponTitle =
@@ -67,7 +68,7 @@ export function MainMenuPage() {
       <div className="rounded-xl bg-bg-secondary px-4 py-3">
         <div className="text-xs font-semibold text-neon-cyan">Current Run</div>
         <div className="mt-1 text-xs text-text-secondary">
-          Eliminate enemies and collect resources. Current highscore: 145,320 coins
+          Eliminate enemies and collect resources. Best score: {profile.data && !profile.isError ? profile.data.bestScore.toLocaleString() : '—'}
         </div>
       </div>
     </div>

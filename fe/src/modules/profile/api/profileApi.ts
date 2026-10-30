@@ -1,7 +1,9 @@
+import type { WeaponId } from '@/shared/lib/weapons'
 import { requestJson } from '@/shared/api/client'
 import { endpoints } from '@/shared/api/endpoints'
 
 export type MeResponse = {
+  bestScore: number
   id: string
   username: string | null
   createdAt: string
@@ -15,7 +17,7 @@ export type CurrenciesResponse = {
 }
 
 export type ProgressionResponse = {
-  loadout: { selectedWeaponId: string }
+  loadout: { selectedWeaponId: WeaponId }
   ownedWeaponIds: string[]
   upgrades: unknown[]
 }

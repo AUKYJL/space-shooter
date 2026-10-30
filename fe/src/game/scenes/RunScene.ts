@@ -15,9 +15,12 @@ import { CameraSystem } from '@/game/systems/CameraSystem'
 import type { AsteroidAssets } from '@/game/assets/loadAsteroidAssets'
 import type { LootAssets } from '@/game/assets/loadLootAssets'
 import type { RunBridgeEventMap, RunSummary } from '@/game/ui-bridge/gameToReact'
+import type { ScoringConfig } from '@/modules/runs/api/runsApi'
+import { calculateScore } from '@/game/scoring'
 import type { Unsubscribe } from '@/game/core/EventBus'
 
 export class RunScene implements Scene {
+  private scoringConfig: ScoringConfig
   private container: Container = new Container()
   private bulletsContainer: Container = new Container()
   private asteroidsContainer: Container = new Container()
@@ -45,11 +48,9 @@ export class RunScene implements Scene {
   private destroyed: RunSummary['destroyed'] = { normal: 0, fast: 0, big: 0, armored: 0 }
   private unsubPause: Unsubscribe | null = null
   private unsubResume: Unsubscribe | null = null
-  private unsubInit: Unsubscribe | null = null
-  private runId: string | null = null
-  private seed: number | null = null
 
   constructor(options: {
+    scoringConfig: ScoringConfig
     canvas: HTMLCanvasElement
     getViewportSize: () => { width: number; height: number }
     events: EventBus<RunBridgeEventMap>
@@ -60,13 +61,14 @@ export class RunScene implements Scene {
     extractionBaseTexture?: Texture
     tuning?: {
       maxHp: number
-      fireCooldownMs: number
+      fireCooldownMs?: number
       bulletDamage: number
       chargedDamage: number
       asteroidVisualTuning?: AsteroidVisualTuning
     }
   }) {
     this.getViewportSize = options.getViewportSize
+    this.scoringConfig = structuredClone(options.scoringConfig)
     this.events = options.events
     this.player = new PlayerShip({ maxHp: options.tuning?.maxHp, visuals: options.shipVisuals })
     this.input = new InputSystem({
@@ -138,11 +140,6 @@ export class RunScene implements Scene {
       if (this.finished) return
       this.hardPaused = false
     })
-
-    this.unsubInit = this.events.on('run:init', (payload) => {
-      this.runId = payload.runId
-      this.seed = payload.seed
-    })
   }
 
   update(dtMs: number) {
@@ -185,6 +182,7 @@ export class RunScene implements Scene {
       this.hudEmitRemainingMs = 100
       const extraction = this.extraction.getExtractionState()
       this.events.emit('run:hud-update', {
+        score: calculateScore(this.scoringConfig, this.destroyed, this.difficulty.getStage()),
         stage: this.difficulty.getStage(),
         hp: this.player.hp,
         maxHp: this.player.maxHp,
@@ -219,6 +217,8 @@ export class RunScene implements Scene {
         : { coins: 0, iron: 0, gold: 0, crystal: 0 }
 
     this.events.emit('run:finished', {
+      score: calculateScore(this.scoringConfig, this.destroyed, this.difficulty.getStage()),
+      stageReached: this.difficulty.getStage(),
       durationMs: this.elapsedMs,
       endedBy,
       extractionCount: this.extractionCount,
@@ -234,8 +234,6 @@ export class RunScene implements Scene {
     this.unsubPause = null
     this.unsubResume?.()
     this.unsubResume = null
-    this.unsubInit?.()
-    this.unsubInit = null
 
     this.input.destroy()
     this.shooting.destroy()

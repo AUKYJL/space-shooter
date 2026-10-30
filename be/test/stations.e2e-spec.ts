@@ -1,12 +1,9 @@
-import request from "supertest";
+import * as request from "supertest";
 import { Test } from "@nestjs/testing";
 import { INestApplication } from "@nestjs/common";
 import { AppModule } from "../src/app.module";
 
-async function login(app: INestApplication) {
-  const res = await request(app.getHttpServer()).post("/auth/login-dev").send({ username: "dev" });
-  return res.body.accessToken as string;
-}
+import { registerTestUser as login } from "./helpers/auth";
 
 describe("stations", () => {
   let app: INestApplication | undefined;

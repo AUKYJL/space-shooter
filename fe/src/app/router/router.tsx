@@ -8,7 +8,7 @@ import {
 } from '@tanstack/react-router'
 
 import { AppLayout } from '@/app/layouts/AppLayout'
-import { DevLoginPage } from '@/modules/auth/ui/DevLoginPage'
+import { LoginPage } from '@/modules/auth/ui/LoginPage'
 import { HelpPage } from '@/modules/help/HelpPage'
 import { InboxPage } from '@/modules/inbox/InboxPage'
 import { WeaponSelectPage } from '@/modules/loadout/WeaponSelectPage'
@@ -22,10 +22,10 @@ const rootRoute = createRootRoute({
   component: AppLayout,
   beforeLoad: ({ location }) => {
     const token = useSessionStore.getState().accessToken
-    const isLoginRoute = location.pathname === '/login-dev'
+    const isLoginRoute = location.pathname === '/login'
 
     if (!token && !isLoginRoute) {
-      throw redirect({ to: '/login-dev' })
+      throw redirect({ to: '/login' })
     }
 
     if (token && isLoginRoute) {
@@ -34,10 +34,10 @@ const rootRoute = createRootRoute({
   },
 })
 
-const loginDevRoute = createRoute({
+const loginRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: '/login-dev',
-  component: DevLoginPage,
+  path: '/login',
+  component: LoginPage,
   staticData: {
     showBottomNav: false,
   },
@@ -92,7 +92,7 @@ const inboxRoute = createRoute({
 })
 
 const routeTree = rootRoute.addChildren([
-  loginDevRoute,
+  loginRoute,
   indexRoute,
   runRoute,
   upgradesRoute,

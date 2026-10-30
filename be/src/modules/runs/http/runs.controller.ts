@@ -8,9 +8,14 @@ import { StartRunDto } from "./dto/start-run.dto";
 export class RunsController {
   constructor(private readonly runs: RunsService) {}
 
+  @Get("/runs/config")
+  config() {
+    return this.runs.getConfig();
+  }
+
   @Post("/runs/start")
   async start(@CurrentUser() user: CurrentUserType, @Body() body: StartRunDto) {
-    return await this.runs.startRun(user.id, body.weaponId);
+    return await this.runs.startRun(user.id, body.weaponId, body.scoringConfigVersion);
   }
 
   @Post("/runs/finish")

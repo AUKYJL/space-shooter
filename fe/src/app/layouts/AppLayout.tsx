@@ -2,6 +2,8 @@ import { Link, Outlet, useMatches, useRouterState } from '@tanstack/react-router
 import { useEffect, useLayoutEffect, useRef } from 'react'
 import { CircleHelp, Home, Mail, Zap } from 'lucide-react'
 
+import { useRunConfigQuery } from '@/modules/runs/api/runsQueries'
+import { useSessionStore } from '@/shared/store/sessionStore'
 import { cn } from '@/lib/utils'
 
 const iconLinkBaseClassName =
@@ -11,6 +13,8 @@ const iconLinkActiveClassName = 'bg-neon-cyan text-bg-primary'
 const iconLinkInactiveClassName = ''
 
 export function AppLayout() {
+  const token = useSessionStore((s) => s.accessToken)
+  useRunConfigQuery(Boolean(token))
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const matches = useMatches()
   const mainRef = useRef<HTMLElement | null>(null)

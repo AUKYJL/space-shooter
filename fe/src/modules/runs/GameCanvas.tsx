@@ -9,10 +9,11 @@ import { loadAsteroidAssets } from '@/game/assets/loadAsteroidAssets'
 import { loadLootAssets } from '@/game/assets/loadLootAssets'
 import { loadExtractionAssets } from '@/game/assets/loadExtractionAssets'
 import { emitRunInit } from '@/game/ui-bridge/reactToGame'
+import type { ScoringConfig, StartRunResponse } from './api/runsApi'
 
 export function GameCanvas(props: {
   events: EventBus<RunBridgeEventMap>
-  init: { runId: string; seed: number; snapshot: { weaponId: string; damage: number; fireRate: number; maxHp: number } }
+  init: StartRunResponse & { scoringConfig: ScoringConfig }
 }) {
   const hostRef = useRef<HTMLDivElement | null>(null)
   const gameRef = useRef<GameApp | null>(null)
@@ -61,6 +62,7 @@ export function GameCanvas(props: {
       unsubResume = props.events.on('run:resume', () => game.resume())
       game.setScene(
         new RunScene({
+          scoringConfig: props.init.scoringConfig,
           canvas: game.getCanvas(),
           getViewportSize: () => game.getViewportSize(),
           events: props.events,
