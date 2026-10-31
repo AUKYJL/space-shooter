@@ -23,17 +23,19 @@ export class InputSystem {
   private pendingClientDx = 0
   private pendingClientDy = 0
   private keysDown = new Set<string>()
-  private moveSpeedPxPerSec = 320
+  private moveSpeedPxPerSec: number
 
   private isKeyboardFiring = false
   private keyboardFireDownAtMs: number | null = null
 
   constructor(options: {
+    moveSpeedPxPerSec: number
     canvas: HTMLCanvasElement
     player: PlayerShip
     getViewportSize: () => ViewportSize
     events: EventBus<RunBridgeEventMap>
   }) {
+    this.moveSpeedPxPerSec = options.moveSpeedPxPerSec
     this.canvas = options.canvas
     this.player = options.player
     this.getViewportSize = options.getViewportSize

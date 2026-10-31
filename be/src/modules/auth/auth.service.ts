@@ -1,10 +1,11 @@
+import { getCatalogWeapon } from "../../shared/game-config/weaponsConfig";
 import { ConflictException, Injectable, UnauthorizedException } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { createHash, randomUUID } from "node:crypto";
 import { PrismaService } from "../../infra/prisma/prisma.service";
 import { JwtService, REFRESH_TTL_SECONDS } from "../../infra/jwt/jwt.service";
 import type { RefreshPayload } from "../../infra/jwt/jwt.service";
-import { WEAPON_ID } from "../../common/ids";
+import { WEAPON_ID } from "../../shared/ids";
 import { hashPassword, verifyPassword } from "./password";
 import { CredentialsDto } from "./dto/credentials.dto";
 
@@ -21,10 +22,7 @@ export class AuthService {
         const basicWeaponId = WEAPON_ID.BASIC_LASER;
         await tx.weaponCatalog.upsert({
           where: { id: basicWeaponId },
-          create: {
-            id: basicWeaponId, name: "Basic Laser", type: "laser", baseDamage: 1,
-            baseFireRate: 1, projectileSpeed: 900, unlockedByDefault: true,
-          },
+          create: getCatalogWeapon(basicWeaponId),
           update: {},
         });
         const user = await tx.user.create({ data: {

@@ -1,6 +1,6 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../../infra/prisma/prisma.service";
-import { type StationId } from "../../common/ids";
+import { type StationId } from "../../shared/ids";
 
 const MAX_SLOTS = 3;
 

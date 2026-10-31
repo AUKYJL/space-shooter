@@ -1,3 +1,4 @@
+import type { ExtractionConfig } from '@/game/core/gameplayConfig'
 import { Container, type Texture } from 'pixi.js'
 
 import { ExtractionBase } from '@/game/entities/ExtractionBase'
@@ -17,25 +18,32 @@ export class ExtractionSystem {
   private getViewportSize: () => { width: number; height: number }
 
   private base: ExtractionBase
-  private spawnEveryMs = 22_000
-  private ttlMs = 10_000
-  private spawnInMs = 12_000
+  private spawnEveryMs: number
+  private ttlMs: number
+  private spawnInMs: number
   private ttlRemainingMs = 0
   private progressMs = 0
-  private requiredMs = 3000
+  private requiredMs: number
   private extracted = false
   private baseExpired = false
 
-  constructor(options: {
+  private config: ExtractionConfig
+
+  constructor(config: ExtractionConfig, options: {
     container: Container
     player: PlayerShip
     getViewportSize: () => { width: number; height: number }
     baseTexture?: Texture
   }) {
+    this.config = config
+    this.spawnEveryMs = config.spawnEveryMs
+    this.ttlMs = config.ttlMs
+    this.spawnInMs = config.firstSpawnMs
+    this.requiredMs = config.requiredMs
     this.container = options.container
     this.player = options.player
     this.getViewportSize = options.getViewportSize
-    this.base = new ExtractionBase({ texture: options.baseTexture })
+    this.base = new ExtractionBase({ radius: config.radius, texture: options.baseTexture })
     this.container.addChild(this.base.view)
   }
 
@@ -108,7 +116,7 @@ export class ExtractionSystem {
     const viewport = this.getViewportSize()
     if (viewport.width <= 0 || viewport.height <= 0) return
 
-    const pad = 40
+    const pad = this.config.spawnPadding
     const x = pad + Math.random() * Math.max(1, viewport.width - pad * 2)
     const y = pad + Math.random() * Math.max(1, viewport.height - pad * 2)
 

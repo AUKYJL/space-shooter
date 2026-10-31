@@ -1,46 +1,10 @@
+import { WEAPON_CATALOG } from "../src/shared/game-config/weaponsConfig";
 import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
 async function main() {
-  const weapons = [
-    {
-      id: "basic_laser",
-      name: "Basic Laser",
-      type: "laser",
-      baseDamage: 1,
-      baseFireRate: 2,
-      projectileSpeed: 900,
-      unlockedByDefault: true,
-    },
-    {
-      id: "spread_shot",
-      name: "Spread Shot",
-      type: "spread",
-      baseDamage: 2,
-      baseFireRate: 1.6,
-      projectileSpeed: 850,
-      unlockedByDefault: false,
-    },
-    {
-      id: "shotgun",
-      name: "Shotgun",
-      type: "shotgun",
-      baseDamage: 3,
-      baseFireRate: 1.1,
-      projectileSpeed: 800,
-      unlockedByDefault: false,
-    },
-    {
-      id: "plasma",
-      name: "Plasma",
-      type: "plasma",
-      baseDamage: 4,
-      baseFireRate: 1.4,
-      projectileSpeed: 780,
-      unlockedByDefault: false,
-    },
-  ] as const;
+  const weapons = WEAPON_CATALOG;
 
   for (const weapon of weapons) {
     await prisma.weaponCatalog.upsert({

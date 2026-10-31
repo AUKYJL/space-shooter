@@ -1,4 +1,4 @@
-import { ENEMY_CONFIG } from '@/test/enemyConfig'
+import { RUN_CONFIG, GAMEPLAY_CONFIG, WEAPON_TUNING } from '@/test/runConfig'
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
@@ -9,8 +9,8 @@ import { finishRun, getRunConfig, startRun, type FinishRunRequest } from './runs
 import { useFinishRunMutation, useRunConfigQuery, useStartRunMutation } from './runsQueries'
 
 vi.mock('./runsApi', () => ({ getRunConfig: vi.fn(), startRun: vi.fn(), finishRun: vi.fn() }))
-const config = { version: 1, asteroidPoints: { normal: 10, fast: 20, big: 30, armored: 50 }, stageBonus: 100 }
-const started = { runId: 'run-1', seed: 1, scoringConfigVersion: 1, snapshot: { weaponId: 'basic_laser', damage: 1, fireRate: 2, maxHp: 5, scoringConfig: config } }
+const config = structuredClone(RUN_CONFIG)
+const started = { runId: 'run-1', seed: 1, scoringConfigVersion: 7, snapshot: { weaponId: 'basic_laser', damage: 1, fireRate: 2, maxHp: 5, scoringConfig: config, gameplayConfig: GAMEPLAY_CONFIG, weaponTuning: WEAPON_TUNING } }
 function setup() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
   const wrapper = ({ children }: { children: ReactNode }) => <QueryClientProvider client={client}>{children}</QueryClientProvider>
@@ -31,27 +31,32 @@ describe('run config and start', () => {
     const { wrapper } = setup()
     const { result } = renderHook(() => useStartRunMutation(), { wrapper })
     await act(async () => {
-      await expect(result.current.mutateAsync({ weaponId: 'basic_laser' })).rejects.toThrow('Run snapshot config is missing')
+      await expect(result.current.mutateAsync({ weaponId: 'basic_laser' })).rejects.toThrow('Invalid run configuration: scoring')
     })
     expect(startRun).toHaveBeenCalledTimes(1)
   })
 
   it.each([false, true])('pins the exact start snapshot and clones it (409 retry: %s)', async (retry) => {
-    const snapshotConfig = { ...config, version: retry ? 2 : 1, stageBonus: 777 }
+    const snapshotConfig = { ...config, version: 7, stageBonus: 777 }
+    const snapshotGameplay = structuredClone(GAMEPLAY_CONFIG)
+    snapshotGameplay.player.maxHp = 333
     if (retry) {
-      vi.mocked(getRunConfig).mockResolvedValueOnce(config).mockResolvedValueOnce({ ...config, version: 2 })
+      vi.mocked(getRunConfig).mockResolvedValueOnce(config).mockResolvedValueOnce({ ...config, version: 7 })
       vi.mocked(startRun).mockRejectedValueOnce(new ApiError('changed', 409, null))
     }
     vi.mocked(startRun).mockResolvedValueOnce({ ...started, scoringConfigVersion: snapshotConfig.version,
-      snapshot: { ...started.snapshot, scoringConfig: snapshotConfig } })
+      snapshot: { ...started.snapshot, scoringConfig: snapshotConfig, gameplayConfig: snapshotGameplay } })
     const { wrapper, client } = setup()
     const { result } = renderHook(() => useStartRunMutation(), { wrapper })
     await act(async () => { await result.current.mutateAsync({ weaponId: 'basic_laser' }) })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(result.current.data?.scoringConfig.stageBonus).toBe(777)
+    expect(result.current.data?.snapshot.gameplayConfig.player.maxHp).toBe(333)
+    snapshotGameplay.player.maxHp = 999
     snapshotConfig.stageBonus = 999
     client.setQueryData(qk.runConfig(), { ...config, stageBonus: 888 })
     expect(result.current.data?.scoringConfig.stageBonus).toBe(777)
+    expect(result.current.data?.snapshot.gameplayConfig.player.maxHp).toBe(333)
   })
 
   it('does not request config before authentication', () => {
@@ -66,7 +71,7 @@ describe('run config and start', () => {
     const mutation = renderHook(() => useStartRunMutation(), { wrapper })
     let response
     await act(async () => { response = await mutation.result.current.mutateAsync({ weaponId: 'basic_laser' }) })
-    expect(startRun).toHaveBeenCalledWith({ weaponId: 'basic_laser', scoringConfigVersion: 1 })
+    expect(startRun).toHaveBeenCalledWith({ weaponId: 'basic_laser', scoringConfigVersion: 7 })
     expect(getRunConfig).toHaveBeenCalledTimes(1)
     expect(response).toEqual({ ...started, scoringConfig: config })
   })
@@ -80,15 +85,15 @@ describe('run config and start', () => {
     expect(startRun).toHaveBeenCalledTimes(1)
   })
   it('refetches on 409 and retries exactly once with the new version', async () => {
-    const updated = { ...config, version: 4, stageBonus: 200, enemyPoints: { sentryTurret: 100 },
-      enemies: structuredClone(ENEMY_CONFIG) }
+    const updated = { ...config, version: 7, stageBonus: 200, enemyPoints: { sentryTurret: 100, shieldDrone: 50, mineLayer: 150 },
+      enemies: structuredClone(RUN_CONFIG.enemies!) }
     vi.mocked(getRunConfig).mockResolvedValueOnce(config).mockResolvedValueOnce(updated)
     vi.mocked(startRun).mockRejectedValueOnce(new ApiError('changed', 409, null))
-      .mockResolvedValueOnce({ ...started, scoringConfigVersion: 4, snapshot: { ...started.snapshot, scoringConfig: updated } })
+      .mockResolvedValueOnce({ ...started, scoringConfigVersion: 7, snapshot: { ...started.snapshot, scoringConfig: updated } })
     const { wrapper, client } = setup()
     const { result } = renderHook(() => useStartRunMutation(), { wrapper })
     await act(async () => { await result.current.mutateAsync({ weaponId: 'basic_laser' }) })
-    expect(startRun).toHaveBeenLastCalledWith({ weaponId: 'basic_laser', scoringConfigVersion: 4 })
+    expect(startRun).toHaveBeenLastCalledWith({ weaponId: 'basic_laser', scoringConfigVersion: 7 })
     expect(startRun).toHaveBeenCalledTimes(2)
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     const pinned = result.current.data?.scoringConfig

@@ -4,6 +4,7 @@ import type { SentryTurretConfig } from '@/game/core/enemyConfig'
 
 // Gameplay model: no Pixi objects, drawing or wall-clock timers.
 export class SentryTurret implements Enemy {
+  get contactDamage() { return this.config.contactDamage }
   readonly type = 'sentryTurret'
   readonly position: Position = { x: 0, y: 0 }
   readonly config: SentryTurretConfig

@@ -1,5 +1,5 @@
 import { IsIn, IsString } from "class-validator";
-import { ALL_WEAPON_IDS, type WeaponId } from "../../../../common/ids";
+import { ALL_WEAPON_IDS, type WeaponId } from "../../../../shared/ids";
 
 export class SetWeaponDto {
   @IsString()

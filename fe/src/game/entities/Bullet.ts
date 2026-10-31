@@ -3,11 +3,11 @@ import { BulletView } from '@/game/views/BulletView'
 
 export class Bullet {
   readonly view: Container
-  radius = 4
+  radius = 0
 
   active = false
-  damage = 1
-  baseDamage = 1
+  damage = 0
+  baseDamage = 0
   pierceLeft = 0
   private falloff: { startPx: number; endPx: number } | null = null
   private traveledPx = 0
@@ -18,7 +18,7 @@ export class Bullet {
   private vx = 0
   private vy = 0
   private ageMs = 0
-  private lifetimeMs = 650
+  private lifetimeMs = 0
 
   constructor() {
     this.view = this.visual.view
@@ -35,23 +35,23 @@ export class Bullet {
     directionX: number
     directionY: number
     speed: number
-    lifetimeMs?: number
-    damage?: number
-    radius?: number
+    lifetimeMs: number
+    damage: number
+    radius: number
     color?: number
-    falloff?: { startPx: number; endPx: number }
-    pierceLeft?: number
+    falloff: { startPx: number; endPx: number } | null
+    pierceLeft: number
   }) {
     this.active = true
     this.ageMs = 0
-    this.baseDamage = options.damage ?? 1
+    this.baseDamage = options.damage
     this.damage = this.baseDamage
-    this.pierceLeft = Math.max(0, Math.floor(options.pierceLeft ?? 0))
-    this.falloff = options.falloff ?? null
+    this.pierceLeft = Math.max(0, Math.floor(options.pierceLeft))
+    this.falloff = options.falloff
     this.traveledPx = 0
     this.hitTargets = new WeakSet()
-    this.lifetimeMs = options.lifetimeMs ?? 650
-    const nextRadius = options.radius ?? 4
+    this.lifetimeMs = options.lifetimeMs
+    const nextRadius = options.radius
     const nextColor = options.color ?? 0xf8f8f2
     if (nextRadius !== this.radius || nextColor !== this.color) {
       this.radius = nextRadius
@@ -84,6 +84,7 @@ export class Bullet {
     if (this.ageMs >= this.lifetimeMs) return true
     const x = this.view.position.x
     const y = this.view.position.y
+    // Culling margin outside the viewport; not a gameplay default.
     const pad = this.radius + 16
     return x < -pad || y < -pad || x > viewport.width + pad || y > viewport.height + pad
   }

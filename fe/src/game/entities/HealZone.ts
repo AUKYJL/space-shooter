@@ -1,27 +1,32 @@
+import type { ZoneConfig } from '@/game/core/gameplayConfig'
 import { Container, Graphics } from 'pixi.js'
 
 export class HealZone {
   readonly view: Container
 
   active = false
-  radius = 46
+  radius: number
   ttlRemainingMs = 0
-  readonly healTickMs = 1000
+  readonly healTickMs: number
+  readonly amount: number
   tickAccumMs = 0
 
   private gfx: Graphics
 
-  constructor() {
+  constructor(config: ZoneConfig) {
+    this.radius = config.radius
+    this.healTickMs = config.tickMs
+    this.amount = config.amount
     this.view = new Container()
     this.gfx = new Graphics()
     this.view.addChild(this.gfx)
     this.view.visible = false
   }
 
-  spawn(options: { x: number; y: number; radius?: number; ttlMs?: number }) {
+  spawn(options: { x: number; y: number; radius: number; ttlMs: number }) {
     this.active = true
-    this.radius = Math.max(10, Math.round(options.radius ?? 46))
-    this.ttlRemainingMs = Math.max(1, Math.round(options.ttlMs ?? 5_000))
+    this.radius = Math.round(options.radius)
+    this.ttlRemainingMs = Math.max(1, Math.round(options.ttlMs))
     this.tickAccumMs = 0
 
     this.view.position.set(options.x, options.y)

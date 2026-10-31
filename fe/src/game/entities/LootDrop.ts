@@ -15,14 +15,15 @@ export class LootDrop {
   active = false
   type: LootType = 'coins'
   amount = 1
-  radius = 7
+  readonly radius: number
 
   private gfx: Graphics
   private sprite: Sprite
   private ageMs = 0
   private bobPhase = 0
 
-  constructor() {
+  constructor(radius: number) {
+    this.radius = radius
     this.view = new Container()
     this.gfx = new Graphics()
     this.sprite = new Sprite()

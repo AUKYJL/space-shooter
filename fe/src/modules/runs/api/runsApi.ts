@@ -1,3 +1,4 @@
+import type { GameplayConfig, WeaponTuning } from "@/game/core/gameplayConfig"
 import type { EnemyConfigs } from '@/game/core/enemyConfig'
 import { requestJson } from '@/shared/api/client'
 import { endpoints } from '@/shared/api/endpoints'
@@ -12,12 +13,14 @@ export type ScoringConfig = {
   enemyPoints?: { sentryTurret: number; shieldDrone?: number; mineLayer?: number }
 }
 
+export type RunConfig = ScoringConfig & { gameplay: GameplayConfig }
+
 export type StartRunRequest = { weaponId: string; scoringConfigVersion: number }
 export type StartRunResponse = {
   runId: string
   seed: number
   scoringConfigVersion: number
-  snapshot: { weaponId: string; damage: number; fireRate: number; maxHp: number; scoringConfig: ScoringConfig }
+  snapshot: { weaponId: string; damage: number; fireRate: number; maxHp: number; scoringConfig: ScoringConfig; gameplayConfig: GameplayConfig; weaponTuning: WeaponTuning }
 }
 
 export type FinishRunRequest = {
@@ -61,7 +64,7 @@ export type RunHistoryItem = {
 }
 
 export function getRunConfig() {
-  return requestJson<ScoringConfig>({ method: 'GET', url: endpoints.runs.config() })
+  return requestJson<RunConfig>({ method: 'GET', url: endpoints.runs.config() })
 }
 
 export function startRun(body: StartRunRequest) {

@@ -1,3 +1,4 @@
+import { GAMEPLAY_CONFIG } from '@/test/runConfig'
 import { describe, expect, it } from 'vitest'
 import { Container } from 'pixi.js'
 
@@ -6,9 +7,9 @@ import { PlayerShip } from '@/game/entities/PlayerShip'
 
 describe('LootSystem lifetime', () => {
   it('despawns loot after lifetime', () => {
-    const player = new PlayerShip({ maxHp: 3 })
+    const player = new PlayerShip({ config: GAMEPLAY_CONFIG.player, maxHp: 3 })
     const container = new Container()
-    const loot = new LootSystem({ player, container })
+    const loot = new LootSystem(GAMEPLAY_CONFIG.loot, { player, container })
 
     ;(loot as unknown as { spawnOne: (args: { type: 'coins'; amount: number; x: number; y: number }) => void }).spawnOne({
       type: 'coins',

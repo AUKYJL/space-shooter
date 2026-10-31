@@ -3,6 +3,7 @@ import type { SentryTurret } from './SentryTurret'
 import type { ShieldDroneConfig } from '@/game/core/enemyConfig'
 
 export class ShieldDrone implements Enemy {
+  get contactDamage() { return this.config.contactDamage }
   readonly type = 'shieldDrone'
   readonly position: Position = { x: 0, y: 0 }
   readonly config: ShieldDroneConfig

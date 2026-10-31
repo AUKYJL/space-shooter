@@ -2,7 +2,7 @@ import { Link } from '@tanstack/react-router'
 import { useEffect, useMemo } from 'react'
 
 import { WEAPON_CATALOG } from '@/shared/lib/weapons'
-import { getWeaponPurchaseCost } from '@/shared/lib/pricing'
+import { useRunConfigQuery } from '@/modules/runs/api/runsQueries'
 import { useAppStore } from '@/shared/store/appStore'
 import { Button } from '@/shared/ui/button'
 import { ResourceIcon } from '@/shared/ui/ResourceIcon'
@@ -12,6 +12,7 @@ import { useLoadoutQuery, usePatchWeaponMutation } from '@/modules/loadout/api/l
 export function WeaponSelectPage() {
   const selectedWeaponId = useAppStore((s) => s.selectedWeaponId)
   const setSelectedWeaponId = useAppStore((s) => s.setSelectedWeaponId)
+  const config = useRunConfigQuery()
   const currencies = useCurrenciesQuery()
   const progression = useProgressionQuery()
   const loadout = useLoadoutQuery()
@@ -19,7 +20,7 @@ export function WeaponSelectPage() {
 
   const ownedWeaponIds = progression.data?.ownedWeaponIds ?? []
 
-  const loading = currencies.isLoading || progression.isLoading || loadout.isLoading
+  const loading = config.isLoading || currencies.isLoading || progression.isLoading || loadout.isLoading
   const selectedFromBackend = useMemo(
     () => loadout.data?.selectedWeaponId ?? progression.data?.loadout?.selectedWeaponId ?? null,
     [loadout.data?.selectedWeaponId, progression.data?.loadout?.selectedWeaponId],
@@ -38,12 +39,13 @@ export function WeaponSelectPage() {
         <div className="mt-1 text-xs text-text-secondary">Choose a weapon before starting a run.</div>
       </div>
 
+      {config.isError ? <div role="alert">Failed to load weapon configuration</div> : null}
       <div className="flex flex-col gap-3">
         {loading ? <div className="text-xs text-text-secondary">Loading loadout…</div> : null}
         {WEAPON_CATALOG.map((w) => {
           const active = w.id === selectedWeaponId
           const owned = ownedWeaponIds.includes(w.id)
-          const cost = getWeaponPurchaseCost(w.id)
+          const cost = config.data?.gameplay.weapons.purchaseCosts[w.id]
           const baseClassName = [
             'w-full rounded-xl border bg-bg-secondary px-4 py-4 text-left transition-colors',
             active ? 'border-neon-cyan/60 shadow-[0_0_32px_rgba(0,212,255,0.12)]' : 'border-white/10',

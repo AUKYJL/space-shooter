@@ -1,3 +1,5 @@
+import type { GameplayConfig } from '@/game/core/gameplayConfig'
+import type { WeaponId } from '@/shared/lib/weapons'
 import { Container, type Texture } from 'pixi.js'
 
 import type { Scene } from '@/game/core/types'
@@ -21,6 +23,7 @@ import type { Unsubscribe } from '@/game/core/EventBus'
 
 export class RunScene implements Scene {
   private scoringConfig: ScoringConfig
+  private gameplayConfig: GameplayConfig
   private container: Container = new Container()
   private bulletsContainer: Container = new Container()
   private asteroidsContainer: Container = new Container()
@@ -51,48 +54,51 @@ export class RunScene implements Scene {
   private unsubResume: Unsubscribe | null = null
 
   constructor(options: {
+    gameplayConfig: GameplayConfig
     scoringConfig: ScoringConfig
     canvas: HTMLCanvasElement
     getViewportSize: () => { width: number; height: number }
     events: EventBus<RunBridgeEventMap>
-    weaponId?: string
+    weaponId: WeaponId
     shipVisuals?: PlayerShipVisuals
     asteroidVisuals?: AsteroidAssets
     lootAssets?: LootAssets
     extractionBaseTexture?: Texture
-    tuning?: {
+    tuning: {
       maxHp: number
-      fireCooldownMs?: number
+      fireCooldownMs: number
       bulletDamage: number
       chargedDamage: number
       asteroidVisualTuning?: AsteroidVisualTuning
     }
   }) {
+    if (options.scoringConfig.version !== 7 || !options.scoringConfig.enemies?.mineLayer) throw new Error('Unsupported run configuration')
+    this.gameplayConfig = structuredClone(options.gameplayConfig)
+    const config = this.gameplayConfig
     this.getViewportSize = options.getViewportSize
     this.scoringConfig = structuredClone(options.scoringConfig)
-    if (this.scoringConfig.version >= 5) this.enemiesDestroyed.mineLayer = 0
+    this.enemiesDestroyed.mineLayer = 0
     this.events = options.events
-    this.player = new PlayerShip({ maxHp: options.tuning?.maxHp, visuals: options.shipVisuals })
+    this.player = new PlayerShip({ config: config.player, maxHp: options.tuning.maxHp, visuals: options.shipVisuals })
     this.input = new InputSystem({
+      moveSpeedPxPerSec: config.player.moveSpeedPxPerSec,
       canvas: options.canvas,
       player: this.player,
       getViewportSize: options.getViewportSize,
       events: this.events,
     })
-    this.shooting = new ShootingSystem({
+    this.shooting = new ShootingSystem(config.weapons, {
       player: this.player,
       input: this.input,
       getViewportSize: options.getViewportSize,
       bulletsContainer: this.bulletsContainer,
-      cooldownMs: options.tuning?.fireCooldownMs,
-      bulletDamage: options.tuning?.bulletDamage,
-      chargedDamage: options.tuning?.chargedDamage,
+      cooldownMs: options.tuning.fireCooldownMs,
+      bulletDamage: options.tuning.bulletDamage,
+      chargedDamage: options.tuning.chargedDamage,
       weaponId: options.weaponId,
     })
-    this.spawns = new SpawnSystem({
-      enemies: this.scoringConfig.version >= 4 && this.scoringConfig.enemies
-        ? { ...this.scoringConfig.enemies, mineLayer: this.scoringConfig.version >= 5 ? this.scoringConfig.enemies.mineLayer : undefined }
-        : undefined,
+    this.spawns = new SpawnSystem(config, {
+      enemies: this.scoringConfig.enemies!,
       onEnemyDestroyed: (enemy) => { this.enemiesDestroyed[enemy.type] = (this.enemiesDestroyed[enemy.type] ?? 0) + 1 },
       container: this.asteroidsContainer,
       getViewportSize: options.getViewportSize,
@@ -106,17 +112,17 @@ export class RunScene implements Scene {
       asteroidVisualTuning: options.tuning?.asteroidVisualTuning,
     })
     this.camera = new CameraSystem()
-    this.collisions = new CollisionSystem({
+    this.collisions = new CollisionSystem(config.player.invulnerabilityMs, {
       player: this.player,
       shooting: this.shooting,
       spawns: this.spawns,
       onPlayerDamaged: () => this.camera.shake({ durationMs: 150, amplitudePx: 6 }),
     })
-    this.loot = new LootSystem({ player: this.player, container: this.lootContainer, textures: options.lootAssets })
-    this.charge = new ChargeSystem({ events: this.events, shooting: this.shooting })
-    this.difficulty = new DifficultySystem()
+    this.loot = new LootSystem(config.loot, { player: this.player, container: this.lootContainer, textures: options.lootAssets })
+    this.charge = new ChargeSystem(config.weapons.charge, { events: this.events, shooting: this.shooting })
+    this.difficulty = new DifficultySystem(config.difficulty)
     this.multiplier = this.difficulty.getStageMultiplier()
-    this.extraction = new ExtractionSystem({
+    this.extraction = new ExtractionSystem(config.extraction, {
       container: this.extractionContainer,
       player: this.player,
       getViewportSize: options.getViewportSize,
@@ -135,7 +141,7 @@ export class RunScene implements Scene {
     this.charge.mount()
 
     const size = this.getViewportSize()
-    this.player.setPosition(size.width / 2, size.height * 0.7)
+    this.player.setPosition(size.width / 2, size.height * this.gameplayConfig.player.startHeightRatio)
 
     this.unsubPause = this.events.on('run:pause', () => {
       if (this.finished) return

@@ -1,4 +1,7 @@
-import { calculateScore, getSuspicionReasons, SCORING_CONFIG, type ScoringConfig } from "./scoring";
+import { GAMEPLAY_CONFIG } from "./config/runConfig";
+const getSuspicionReasons = (input: FinishRunDto, startedAt: Date, now: Date, config: ScoringConfig = SCORING_CONFIG, gameplay = GAMEPLAY_CONFIG) =>
+  checkSuspicion(input, startedAt, now, config, gameplay);
+import { calculateScore, getSuspicionReasons as checkSuspicion, SCORING_CONFIG, type ScoringConfig } from "./scoring";
 import { FinishRunDto } from "./http/dto/finish-run.dto";
 import { plainToInstance } from "class-transformer";
 import { validateSync } from "class-validator";

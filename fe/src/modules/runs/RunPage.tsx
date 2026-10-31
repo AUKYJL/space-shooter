@@ -23,7 +23,7 @@ export function RunPage() {
   const startRunMutation = useStartRunMutation()
   const finishRunMutation = useFinishRunMutation()
   const { mutate: startRun } = startRunMutation
-  const [hud, setHud] = useState<RunHudState>(initialHud)
+  const [hud, setHud] = useState<RunHudState | null>(null)
 
   useEffect(() => onRunHudUpdate(events, setHud), [events])
 
@@ -68,7 +68,7 @@ export function RunPage() {
 
   const restart = () => {
     setRunInit(null)
-    setHud(initialHud())
+    setHud(null)
     setPaused(false)
     setLastRunSummary(null)
     finishPayload.current = null
@@ -93,15 +93,20 @@ export function RunPage() {
           </div>
         </div>
       ) : null}
-      <RunHud
-        model={hud}
+      {runInit && <RunHud
+        model={hud ?? {
+          score: 0, stage: 1, hp: runInit.snapshot.maxHp, maxHp: runInit.snapshot.maxHp,
+          charge: 0, multiplier: 1, coins: 0, iron: 0, gold: 0, crystal: 0,
+          extractionAvailable: false, extractionInZone: false, extractionBaseTtlMs: 0, extractionProgressMs: 0,
+          extractionRequiredMs: runInit.snapshot.gameplayConfig.extraction.requiredMs,
+        }}
         onCharge={() => emitChargeActivate(events)}
         onPause={() => {
           setPaused(true)
           emitRunPause(events)
         }}
         pauseDisabled={paused}
-      />
+      />}
       <PauseOverlay
         open={paused}
         onResume={() => {
@@ -118,13 +123,4 @@ export function RunPage() {
       />
     </div>
   )
-}
-
-function initialHud(): RunHudState {
-  return {
-    score: 0, stage: 1, hp: 10, maxHp: 10, charge: 0, multiplier: 1,
-    coins: 0, iron: 0, gold: 0, crystal: 0,
-    extractionAvailable: false, extractionInZone: false, extractionBaseTtlMs: 0,
-    extractionProgressMs: 0, extractionRequiredMs: 3000,
-  }
 }

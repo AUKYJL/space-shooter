@@ -1,3 +1,6 @@
+import { RUN_CONFIG, isGameplayConfig, isScoringConfig, type GameplayConfig, type RunConfig } from "./config/runConfig";
+import { resolveWeaponTuning, type WeaponTuning } from "../../shared/game-config/weaponsConfig";
+import { LEGACY_RUN_RULES } from "./config/legacyRunRules";
 import {
   BadRequestException,
   ConflictException,
@@ -8,14 +11,16 @@ import {
 } from "@nestjs/common";
 import { randomInt } from "crypto";
 import { PrismaService } from "../../infra/prisma/prisma.service";
-import { type WeaponId } from "../../common/ids";
+import { type WeaponId } from "../../shared/ids";
 import type { Prisma } from "@prisma/client";
 import { FinishRunDto } from "./http/dto/finish-run.dto";
-import { calculateScore, getSuspicionReasons, SCORING_CONFIG, type ScoringConfig } from "./scoring";
+import { calculateScore, getSuspicionReasons, type ScoringConfig } from "./scoring";
 import { type JsonValue } from "@prisma/client/runtime/library";
 
 type RunSnapshot = {
   scoringConfig: ScoringConfig;
+  gameplayConfig: GameplayConfig;
+  weaponTuning: WeaponTuning;
   weaponId: WeaponId;
   damage: number;
   fireRate: number;
@@ -30,22 +35,18 @@ type GrantedRewards = {
   };
 };
 
-const COINS_CAP = 10_000;
-const ORE_CAP = 1_000;
-const CRYSTAL_CAP = 1_000;
-
 @Injectable()
 export class RunsService {
   constructor(private readonly prisma: PrismaService) {}
 
   private readonly logger = new Logger(RunsService.name);
 
-  getConfig(): ScoringConfig {
-    return SCORING_CONFIG;
+  getConfig(): RunConfig {
+    return structuredClone(RUN_CONFIG);
   }
 
   async startRun(userId: string, weaponId: WeaponId, scoringConfigVersion: number) {
-    const scoringConfig = this.getConfig();
+    const { gameplay: gameplayConfig, ...scoringConfig } = this.getConfig();
     if (scoringConfigVersion !== scoringConfig.version) {
       throw new ConflictException("Scoring config changed; reload /runs/config");
     }
@@ -84,13 +85,14 @@ export class RunsService {
     const bonus = sumUpgradeEffects(ownedCatalog.map((u) => u.effectJson));
 
     const seed = randomInt(1, 1_000_000_000);
-    const START_HP = 1000;
+    const damage = weapon.baseDamage + bonus.damage;
+    const fireRate = weapon.baseFireRate + bonus.fireRate;
     const snapshot: RunSnapshot = {
       scoringConfig,
-      weaponId,
-      damage: weapon.baseDamage + bonus.damage,
-      fireRate: weapon.baseFireRate + bonus.fireRate,
-      maxHp: START_HP + bonus.maxHp,
+      gameplayConfig,
+      weaponTuning: resolveWeaponTuning(damage, fireRate, gameplayConfig.weapons),
+      weaponId, damage, fireRate,
+      maxHp: gameplayConfig.player.maxHp + bonus.maxHp,
     };
 
     const run = await this.prisma.run.create({
@@ -121,19 +123,31 @@ export class RunsService {
       };
       if (run.status !== "started" || run.finishedAt) return savedResponse();
 
-      const config = (run.snapshotJson as unknown as Partial<RunSnapshot>).scoringConfig;
-      const score = config ? calculateScore(config, input.summary.destroyedByType, input.summary.stageReached, input.summary.enemiesDestroyed) : null;
+      const snapshot = run.snapshotJson as unknown as Partial<RunSnapshot>;
+      const config = snapshot.scoringConfig;
+      const legacy = !!config && Number.isInteger(config.version) && config.version >= 1 && config.version <= 6;
+      const modern = !legacy;
+      const tuning = snapshot.weaponTuning;
+      const validModern = isScoringConfig(config) && isGameplayConfig(snapshot.gameplayConfig) && tuning
+        && [tuning.bulletDamage, tuning.chargedDamage, tuning.fireCooldownMs, snapshot.damage, snapshot.fireRate, snapshot.maxHp]
+          .every((value) => typeof value === "number" && Number.isFinite(value) && value > 0)
+        && !!snapshot.weaponId && Object.prototype.hasOwnProperty.call(snapshot.gameplayConfig.weapons.variants, snapshot.weaponId);
       const now = new Date();
-      const reasons = getSuspicionReasons(input, run.startedAt, now, config);
-      if (!config) reasons.push("missing scoring snapshot");
+      const reasons = !config ? ["missing scoring snapshot"]
+        : modern && !validModern ? ["invalid gameplay snapshot"]
+        : getSuspicionReasons(input, run.startedAt, now, config, modern ? snapshot.gameplayConfig : undefined);
       const accepted = reasons.length === 0;
-      const multiplier = 1 + (input.summary.stageReached - 1) * 0.15;
+      const score = config && (legacy || validModern)
+        ? calculateScore(config, input.summary.destroyedByType, input.summary.stageReached, input.summary.enemiesDestroyed) : null;
+      const rules = modern && validModern ? snapshot.gameplayConfig! : LEGACY_RUN_RULES;
+      const multiplier = 1 + (input.summary.stageReached - 1) * rules.difficulty.stageMultiplierStep;
+      const caps = rules.loot.rewardCaps;
       const grantLoot = accepted && input.endedBy === "extract";
       const grantedRewards: GrantedRewards = {
-        coins: grantLoot ? Math.min(Math.floor(input.summary.coinsCollected * multiplier), COINS_CAP) : 0,
+        coins: grantLoot ? Math.min(Math.floor(input.summary.coinsCollected * multiplier), caps.coins) : 0,
         resources: {
-          ore: grantLoot ? Math.min(Math.floor(input.summary.resourcesCollected.ore * multiplier), ORE_CAP) : 0,
-          crystal: grantLoot ? Math.min(Math.floor(input.summary.resourcesCollected.crystal * multiplier), CRYSTAL_CAP) : 0,
+          ore: grantLoot ? Math.min(Math.floor(input.summary.resourcesCollected.ore * multiplier), caps.ore) : 0,
+          crystal: grantLoot ? Math.min(Math.floor(input.summary.resourcesCollected.crystal * multiplier), caps.crystal) : 0,
         },
       };
 

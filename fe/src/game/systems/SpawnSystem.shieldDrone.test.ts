@@ -1,3 +1,5 @@
+import { DifficultySystem } from '@/game/systems/DifficultySystem'
+import { GAMEPLAY_CONFIG, } from '@/test/runConfig'
 import { Container } from 'pixi.js'
 import { describe, expect, it, vi } from 'vitest'
 import { SpawnSystem } from './SpawnSystem'
@@ -9,10 +11,10 @@ const droneRule = cfg
 function setup(stage = 3, roll = 0.25, maxTurrets = 1) {
   const container = new Container()
   const destroyed = vi.fn()
-  const system = new SpawnSystem({ container, getViewportSize: () => ({ width: 400, height: 800 }),
+  const system = new SpawnSystem(GAMEPLAY_CONFIG, { getPlayerPosition: () => ({ x: 200, y: 700 }), container, getViewportSize: () => ({ width: 400, height: 800 }),
     rng: () => roll, enemies: { ...ENEMY_CONFIG, sentryTurret: { ...turretRule, maxActive: maxTurrets } },
     onEnemyDestroyed: destroyed })
-  system.setTuning({ spawnEveryMs: 1000000 })
+  system.setTuning({ ...new DifficultySystem(GAMEPLAY_CONFIG.difficulty).getSpawnTuning(), spawnEveryMs: 1000000 })
   system.setEnemyStage(stage, 1.3)
   system.update(0)
   system.update(turretRule.firstSpawnDelayMs)
@@ -24,6 +26,7 @@ function setup(stage = 3, roll = 0.25, maxTurrets = 1) {
 describe('SpawnSystem shield drones', () => {
   it('pins server mechanics, bullets and Graphics for the entire configured system', () => {
     const enemies = {
+      mineLayer: { ...ENEMY_CONFIG.mineLayer, spawnChance: 0 },
       sentryTurret: { ...turretRule, minStage: 1, firstSpawnDelayMs: 0, hp: 5, radius: 20,
         enteringMs: 100, fireEveryMs: 10, width: 100, outlineWidth: 0,
         bullet: { ...turretRule.bullet, damage: 3, speed: 77, radius: 2 } },
@@ -31,7 +34,7 @@ describe('SpawnSystem shield drones', () => {
         enteringMs: 100, damageReduction: 0.5, shieldRadius: 50, shieldWidth: 0, outlineWidth: 0 },
     }
     const container = new Container()
-    const system = new SpawnSystem({ container, getViewportSize: () => ({ width: 400, height: 800 }),
+    const system = new SpawnSystem(GAMEPLAY_CONFIG, { getPlayerPosition: () => ({ x: 200, y: 700 }), container, getViewportSize: () => ({ width: 400, height: 800 }),
       rng: () => 0.5, enemies })
     // Changes to the caller's config never retune a running system or its pool.
     enemies.sentryTurret.hp = 999
@@ -66,7 +69,7 @@ describe('SpawnSystem shield drones', () => {
   })
 
   it.each([1, 2, 4])('uses the server turret first stage %s exactly', (firstStage) => {
-    const system = new SpawnSystem({ container: new Container(), getViewportSize: () => ({ width: 400, height: 800 }),
+    const system = new SpawnSystem(GAMEPLAY_CONFIG, { getPlayerPosition: () => ({ x: 200, y: 700 }), container: new Container(), getViewportSize: () => ({ width: 400, height: 800 }),
       rng: () => 0.25, enemies: { ...ENEMY_CONFIG, sentryTurret: { ...turretRule, minStage: firstStage } } })
     system.setEnemyStage(firstStage - 1, 1)
     system.update(10000)
@@ -81,8 +84,8 @@ describe('SpawnSystem shield drones', () => {
   })
 
   it.each([2, 3, 4])('uses the server drone first stage %s exactly', (firstStage) => {
-    const system = new SpawnSystem({ container: new Container(), getViewportSize: () => ({ width: 400, height: 800 }),
-      rng: () => 0.25, enemies: { sentryTurret: { ...turretRule, minStage: 1 }, shieldDrone: { ...droneRule, minStage: firstStage } } })
+    const system = new SpawnSystem(GAMEPLAY_CONFIG, { getPlayerPosition: () => ({ x: 200, y: 700 }), container: new Container(), getViewportSize: () => ({ width: 400, height: 800 }),
+      rng: () => 0.25, enemies: { mineLayer: { ...ENEMY_CONFIG.mineLayer, spawnChance: 0 }, sentryTurret: { ...turretRule, minStage: 1 }, shieldDrone: { ...droneRule, minStage: firstStage } } })
     system.setEnemyStage(firstStage - 1, 1)
     system.update(0)
     system.update(turretRule.firstSpawnDelayMs)
@@ -98,7 +101,7 @@ describe('SpawnSystem shield drones', () => {
   it('uses the configured turret chance and waits a full interval after a failed roll', () => {
     const rng = vi.fn(() => 0.25)
     // Keep constructor injection while changing subsequent rolls.
-    const retry = new SpawnSystem({ container: new Container(), getViewportSize: () => ({ width: 400, height: 800 }),
+    const retry = new SpawnSystem(GAMEPLAY_CONFIG, { getPlayerPosition: () => ({ x: 200, y: 700 }), container: new Container(), getViewportSize: () => ({ width: 400, height: 800 }),
       rng, enemies: { ...ENEMY_CONFIG, sentryTurret: { ...turretRule, spawnChance: 0.75 } } })
     retry.setEnemyStage(3, 1)
     retry.update(0)

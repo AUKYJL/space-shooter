@@ -1,3 +1,5 @@
+import type { AsteroidsConfig, AsteroidConfig } from '@/game/core/gameplayConfig'
+export type { AsteroidConfig } from '@/game/core/gameplayConfig'
 import { Container, Graphics, Sprite, Text, Texture } from 'pixi.js'
 import type { DamageableTarget } from './Enemy'
 
@@ -7,28 +9,15 @@ const IS_DEBUG = import.meta.env.ENV === 'debug' || import.meta.env.DEV
 export const ASTEROID_DEBUG_HITBOX = IS_DEBUG
 export const ASTEROID_DEBUG_HP = IS_DEBUG
 
-export type AsteroidConfig = {
-  radius: number
-  hp: number
-  speed: number
-}
-
-const ASTEROID_CONFIG: Record<AsteroidType, AsteroidConfig> = {
-  normal: { radius: 18, hp: 3, speed: 60 },
-  big: { radius: 30, hp: 8, speed: 50 },
-  fast: { radius: 14, hp: 2, speed: 120 },
-  armored: { radius: 22, hp: 10, speed: 70 },
-}
-
 export class Asteroid implements DamageableTarget {
   readonly view: Container
 
   active = false
   type: AsteroidType = 'normal'
-  radius = 18
+  radius = 0
   visualScale = 1
-  hp = 3
-  maxHp = 3
+  hp = 0
+  maxHp = 0
 
   private sprite: Sprite
   private visuals: Partial<Record<AsteroidType, Texture>> = {}
@@ -37,7 +26,10 @@ export class Asteroid implements DamageableTarget {
   private vx = 0
   private vy = 0
 
-  constructor(options?: { visuals?: Partial<Record<AsteroidType, Texture>> }) {
+  private config: AsteroidsConfig
+
+  constructor(config: AsteroidsConfig, options?: { visuals?: Partial<Record<AsteroidType, Texture>> }) {
+    this.config = config
     this.view = new Container()
     this.sprite = new Sprite(Texture.WHITE)
     this.sprite.anchor.set(0.5)
@@ -67,6 +59,8 @@ export class Asteroid implements DamageableTarget {
     }
   }
 
+  get contactDamage() { return this.config.contactDamage }
+
   get position() {
     return this.view.position
   }
@@ -81,11 +75,11 @@ export class Asteroid implements DamageableTarget {
     y: number
     velocityX: number
     velocityY: number
-    stageMultiplier?: number
+    stageMultiplier: number
     visualScale?: number
   }) {
-    const cfg = ASTEROID_CONFIG[options.type]
-    const stageMultiplier = typeof options.stageMultiplier === 'number' ? options.stageMultiplier : 1
+    const cfg: AsteroidConfig = this.config.types[options.type]
+    const stageMultiplier = options.stageMultiplier
     const scaledHp = Math.max(1, Math.ceil(cfg.hp * stageMultiplier))
     this.active = true
     this.type = options.type
@@ -131,6 +125,7 @@ export class Asteroid implements DamageableTarget {
     if (!this.active) return true
     const x = this.view.position.x
     const y = this.view.position.y
+    // Culling margin outside the viewport; not a gameplay default.
     const pad = this.radius + 60
     return x < -pad || y < -pad || x > viewport.width + pad || y > viewport.height + pad
   }
@@ -150,8 +145,4 @@ export class Asteroid implements DamageableTarget {
     this.debugGfx.clear()
     this.debugGfx.circle(0, 0, this.radius).stroke({ color: 0xff5555, width: 1, alpha: 0.55 })
   }
-}
-
-export function getAsteroidConfig(type: AsteroidType) {
-  return ASTEROID_CONFIG[type]
 }

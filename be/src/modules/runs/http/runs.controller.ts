@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Post, Query } from "@nestjs/common";
-import { CurrentUser, type CurrentUser as CurrentUserType } from "../../../common/guards/current-user.decorator";
+import { CurrentUser, type CurrentUser as CurrentUserType } from "../../../shared/guards/current-user.decorator";
 import { RunsService } from "../runs.service";
 import { FinishRunDto } from "./dto/finish-run.dto";
 import { StartRunDto } from "./dto/start-run.dto";
@@ -29,4 +29,3 @@ export class RunsController {
     return await this.runs.getHistory(user.id, Number.isFinite(parsed) ? parsed : undefined);
   }
 }
-

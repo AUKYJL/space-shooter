@@ -2,6 +2,7 @@ import type { MineConfig } from '@/game/core/enemyConfig'
 import type { DamageableTarget, Position } from './Enemy'
 
 export class Mine implements DamageableTarget {
+  get contactDamage() { return this.config.damage }
   readonly position: Position = { x: 0, y: 0 }
   state: 'dormant' | 'armed' | 'exploding' | 'inactive' | 'destroyed' = 'inactive'
   hp = 0

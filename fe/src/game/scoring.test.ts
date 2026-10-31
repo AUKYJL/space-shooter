@@ -1,7 +1,8 @@
+import { RUN_CONFIG } from '@/test/runConfig'
 import { describe, expect, it } from 'vitest'
 import { calculateScore } from './scoring'
 
-const config = { version: 1, asteroidPoints: { normal: 10, fast: 20, big: 30, armored: 50 }, stageBonus: 100 }
+const config = RUN_CONFIG
 
 describe('arcade scoring', () => {
   it.each([
@@ -19,33 +20,15 @@ describe('arcade scoring', () => {
   })
 })
 
-it('adds pinned enemy points and leaves old config scoring intact', () => {
+it('uses pinned enemy points and treats omitted counters as zero', () => {
   const destroyed = { normal: 1, fast: 1, big: 1, armored: 1 }
-  const v2 = { ...config, version: 2, enemyPoints: { sentryTurret: 100 } }
-  expect(calculateScore(v2, destroyed, 2, { sentryTurret: 1 })).toBe(310)
-  expect(calculateScore({ ...v2, enemyPoints: { sentryTurret: 7 } }, destroyed, 2, { sentryTurret: 2 })).toBe(224)
-  expect(calculateScore(config, destroyed, 2)).toBe(210)
+  expect(calculateScore(config, destroyed, 2, { sentryTurret: 1 })).toBe(310)
+  expect(calculateScore({ ...config, enemyPoints: { ...config.enemyPoints, sentryTurret: 7 } }, destroyed, 2, { sentryTurret: 2 })).toBe(224)
+  expect(calculateScore(config, destroyed, 3, { sentryTurret: 1, shieldDrone: 2, mineLayer: 2 })).toBe(810)
 })
 
-it('adds pinned drone points only for version 3+, with omitted counters treated as zero', () => {
-  const destroyed = { normal: 1, fast: 1, big: 1, armored: 1 }
-  const v3 = { ...config, version: 3, enemyPoints: { sentryTurret: 100, shieldDrone: 50 } }
-  expect(calculateScore(v3, destroyed, 3, { sentryTurret: 0, shieldDrone: 1 })).toBe(360)
-  expect(calculateScore({ ...v3, enemyPoints: { sentryTurret: 100, shieldDrone: 7 } }, destroyed, 3,
-    { sentryTurret: 1, shieldDrone: 2 })).toBe(424)
-  expect(calculateScore(v3, destroyed, 3, { sentryTurret: 1 })).toBe(410)
-  expect(calculateScore({ ...v3, version: 2 }, destroyed, 3, { sentryTurret: 1, shieldDrone: 2 })).toBe(410)
-})
-
-describe('Mine Layer score', () => {
-  it('uses pinned points only from version 5, treating an omitted count as zero', () => {
-    const config = { version: 5, asteroidPoints: { normal: 10, fast: 20, big: 30, armored: 50 }, stageBonus: 100,
-      enemyPoints: { sentryTurret: 100, mineLayer: 150 } }
-    const destroyed = { normal: 0, fast: 0, big: 0, armored: 0 }
-    expect(calculateScore(config, destroyed, 4, { sentryTurret: 0, mineLayer: 2 })).toBe(600)
-    expect(calculateScore(config, destroyed, 4)).toBe(300)
-    expect(calculateScore({ ...config, enemyPoints: { sentryTurret: 100, mineLayer: 7 } },
-      destroyed, 4, { sentryTurret: 0, mineLayer: 2 })).toBe(314)
-    expect(calculateScore({ ...config, version: 4 }, destroyed, 4, { sentryTurret: 0, mineLayer: 2 })).toBe(300)
-  })
+it('rejects missing points and unsupported configs instead of substituting zero', () => {
+  const destroyed = { normal: 0, fast: 0, big: 0, armored: 0 }
+  expect(() => calculateScore({ ...config, version: 6 }, destroyed, 1)).toThrow('Invalid scoring configuration')
+  expect(() => calculateScore({ ...config, enemyPoints: undefined }, destroyed, 1)).toThrow('Invalid scoring configuration')
 })

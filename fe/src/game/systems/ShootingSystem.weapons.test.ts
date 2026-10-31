@@ -1,3 +1,4 @@
+import { GAMEPLAY_CONFIG } from '@/test/runConfig'
 import { describe, expect, it } from 'vitest'
 
 import { WEAPON_CATALOG } from '@/shared/lib/weapons'
@@ -13,14 +14,14 @@ describe('weapon catalog', () => {
 
 describe('shotgun falloff', () => {
   it('decreases damage with distance and bottoms at 1', () => {
-    expect(damageAtDistance(6, 0)).toBe(6)
-    expect(damageAtDistance(6, 180)).toBeLessThan(6)
-    expect(damageAtDistance(6, 1000)).toBe(1)
+    expect(damageAtDistance(6, 0, GAMEPLAY_CONFIG.weapons.variants.shotgun.falloff!)).toBe(6)
+    expect(damageAtDistance(6, 180, GAMEPLAY_CONFIG.weapons.variants.shotgun.falloff!)).toBeLessThan(6)
+    expect(damageAtDistance(6, 1000, GAMEPLAY_CONFIG.weapons.variants.shotgun.falloff!)).toBe(1)
   })
 })
 
 describe('plasma piercing', () => {
   it('enables piercing for plasma', () => {
-    expect(getWeaponPrimaryBulletSpec('plasma').pierceLeft).toBeGreaterThan(0)
+    expect(getWeaponPrimaryBulletSpec('plasma', GAMEPLAY_CONFIG.weapons).pierceLeft).toBeGreaterThan(0)
   })
 })

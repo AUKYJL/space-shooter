@@ -1,3 +1,4 @@
+import { GAMEPLAY_CONFIG } from '@/test/runConfig'
 import { describe, expect, it } from 'vitest'
 import { Container } from 'pixi.js'
 
@@ -6,9 +7,9 @@ import { PlayerShip } from '@/game/entities/PlayerShip'
 
 describe('ExtractionSystem zone extraction', () => {
   it('accumulates progress while inside zone and decays when leaving', () => {
-    const player = new PlayerShip({ maxHp: 3 })
+    const player = new PlayerShip({ config: GAMEPLAY_CONFIG.player, maxHp: 3 })
     const container = new Container()
-    const sys = new ExtractionSystem({
+    const sys = new ExtractionSystem(GAMEPLAY_CONFIG.extraction, {
       container,
       player,
       getViewportSize: () => ({ width: 400, height: 800 }),

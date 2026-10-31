@@ -1,3 +1,5 @@
+import type { GameplayConfig } from '@/game/core/gameplayConfig'
+import { DifficultySystem } from './DifficultySystem'
 import { Container } from 'pixi.js'
 import { ShieldDrone } from '@/game/entities/ShieldDrone'
 import { ShieldDroneView } from '@/game/views/ShieldDroneView'
@@ -12,7 +14,7 @@ import type { Position } from '@/game/entities/Enemy'
 import type { EnemyConfigs } from '@/game/core/enemyConfig'
 
 import type { Asteroid, AsteroidType } from '@/game/entities/Asteroid'
-import { Asteroid as AsteroidEntity, getAsteroidConfig } from '@/game/entities/Asteroid'
+import { Asteroid as AsteroidEntity } from '@/game/entities/Asteroid'
 import type { AsteroidAssets } from '@/game/assets/loadAsteroidAssets'
 import type { DangerZone } from '@/game/entities/DangerZone'
 import { DangerZone as DangerZoneEntity } from '@/game/entities/DangerZone'
@@ -34,13 +36,13 @@ export type AsteroidVisualTuning = {
 export class SpawnSystem {
   private container: Container
   private getViewportSize: () => { width: number; height: number }
-  private getPlayerPosition?: () => { x: number; y: number }
+  private getPlayerPosition: () => { x: number; y: number }
   private onAsteroidDestroyed?: (asteroid: Asteroid) => void
   private asteroidVisuals?: AsteroidAssets
   private zonesContainer: Container
   private rng: () => number
 
-  private enemyConfig?: EnemyConfigs
+  private enemyConfig: Required<EnemyConfigs>
   private dronePool: ShieldDrone[] = []
   private droneViews = new Map<ShieldDrone, ShieldDroneView>()
   private onEnemyDestroyed?: (enemy: SentryTurret | ShieldDrone | MineLayer) => void
@@ -61,15 +63,10 @@ export class SpawnSystem {
   private enemyGateJustOpened = false
   private enemySpawnRemainingMs = 0
 
-  private maxActive = 26
-  private spawnEveryMs = 420
+  private maxActive: number
+  private spawnEveryMs: number
   private timeUntilSpawnMs = 0
-  private typeWeights: Record<AsteroidType, number> = {
-    normal: 0.65,
-    fast: 0.17,
-    big: 0.12,
-    armored: 0.06,
-  }
+  private typeWeights: Record<AsteroidType, number>
   private stageMultiplier = 1
   private asteroidVisualScale = 1
   private asteroidVisualScaleByType: Partial<Record<AsteroidType, number>> = {}
@@ -79,23 +76,33 @@ export class SpawnSystem {
 
   private dangerZonesActive: DangerZone[] = []
   private dangerZonesPool: DangerZone[] = []
-  private timeUntilDangerZoneMs = 4500
+  private timeUntilDangerZoneMs: number
   private healZonesActive: HealZone[] = []
   private healZonesPool: HealZone[] = []
-  private timeUntilHealZoneMs = 7200
+  private timeUntilHealZoneMs: number
 
-  constructor(options: {
+  private config: GameplayConfig
+
+  constructor(config: GameplayConfig, options: {
     container: Container
     getViewportSize: () => { width: number; height: number }
-    getPlayerPosition?: () => { x: number; y: number }
+    getPlayerPosition: () => { x: number; y: number }
     onAsteroidDestroyed?: (asteroid: Asteroid) => void
     asteroidVisuals?: AsteroidAssets
     asteroidVisualTuning?: AsteroidVisualTuning
     rng?: () => number
-    enemies?: EnemyConfigs
+    enemies: EnemyConfigs
     onEnemyDestroyed?: (enemy: SentryTurret | ShieldDrone | MineLayer) => void
   }) {
-    this.enemyConfig = options.enemies ? structuredClone(options.enemies) : undefined
+    this.config = config
+    if (!options.enemies?.sentryTurret || !options.enemies.shieldDrone || !options.enemies.mineLayer) throw new Error('Missing enemy configuration')
+    this.enemyConfig = structuredClone(options.enemies) as Required<EnemyConfigs>
+    const tuning = new DifficultySystem(config.difficulty).getSpawnTuning()
+    this.maxActive = Math.max(1, Math.floor(tuning.maxActive))
+    this.spawnEveryMs = Math.max(config.spawn.minSpawnEveryMs, Math.floor(tuning.spawnEveryMs))
+    this.typeWeights = normalizeWeights(tuning.typeWeights)
+    this.timeUntilDangerZoneMs = config.zones.danger.firstSpawnMs
+    this.timeUntilHealZoneMs = config.zones.heal.firstSpawnMs
     this.onEnemyDestroyed = options.onEnemyDestroyed
     this.container = options.container
     this.zonesContainer = new Container()
@@ -121,12 +128,12 @@ export class SpawnSystem {
 
     if (this.timeUntilDangerZoneMs <= 0) {
       this.maybeSpawnDangerZone()
-      this.timeUntilDangerZoneMs = 4500 + this.rng() * 3500
+      this.timeUntilDangerZoneMs = this.config.zones.danger.spawnEveryMs + this.rng() * this.config.zones.danger.spawnJitterMs
     }
 
     if (this.timeUntilHealZoneMs <= 0) {
       this.maybeSpawnHealZone()
-      this.timeUntilHealZoneMs = 7200 + this.rng() * 4200
+      this.timeUntilHealZoneMs = this.config.zones.heal.spawnEveryMs + this.rng() * this.config.zones.heal.spawnJitterMs
     }
 
     const viewport = this.getViewportSize()
@@ -165,14 +172,14 @@ export class SpawnSystem {
   }
 
   setEnemyStage(stage: number, multiplier: number) {
-    const rule = this.enemyConfig?.sentryTurret
-    const minStage = rule?.minStage ?? Infinity
-    if (rule && this.enemyStage < minStage && stage >= minStage) {
+    const rule = this.enemyConfig.sentryTurret
+    const minStage = rule.minStage
+    if (this.enemyStage < minStage && stage >= minStage) {
       this.enemySpawnRemainingMs = rule.firstSpawnDelayMs
       this.enemyGateJustOpened = true
     }
-    const mineRule = this.enemyConfig?.mineLayer
-    if (mineRule && this.enemyStage < mineRule.minStage && stage >= mineRule.minStage) {
+    const mineRule = this.enemyConfig.mineLayer
+    if (this.enemyStage < mineRule.minStage && stage >= mineRule.minStage) {
       this.mineLayerSpawnRemainingMs = mineRule.firstSpawnDelayMs
       this.mineLayerGateJustOpened = true
     }
@@ -191,7 +198,7 @@ export class SpawnSystem {
       bullet.update(dtMs)
       if (bullet.shouldDespawn(viewport)) this.despawnEnemyBullet(bullet)
     }
-    const player = this.getPlayerPosition?.() ?? { x: viewport.width / 2, y: viewport.height }
+    const player = this.getPlayerPosition()
     // Age existing mines before ship updates create new ones.
     for (const mine of this.mines) mine.update(dtMs)
     for (const enemy of this.enemies) {
@@ -207,8 +214,8 @@ export class SpawnSystem {
     }
     this.resolveDestroyedEnemies()
     this.spawnMineLayer(dtMs, viewport)
-    const rule = this.enemyConfig?.sentryTurret
-    if (!rule || this.enemyStage < rule.minStage) return
+    const rule = this.enemyConfig.sentryTurret
+    if (this.enemyStage < rule.minStage) return
     // Stage changes are observed at the end of a frame: don't count that frame twice.
     if (this.enemyGateJustOpened) {
       this.enemyGateJustOpened = false
@@ -230,8 +237,8 @@ export class SpawnSystem {
     visual.sync(enemy)
     this.container.addChild(visual.view)
     this.enemies.push(enemy)
-    const droneRule = this.enemyConfig?.shieldDrone
-    if (droneRule && this.enemyStage >= droneRule.minStage
+    const droneRule = this.enemyConfig.shieldDrone
+    if (this.enemyStage >= droneRule.minStage
       && this.enemies.filter((item) => item.type === 'shieldDrone').length < droneRule.maxActive
       && this.rng() < droneRule.spawnChance) {
       const drone = this.dronePool.pop() ?? new ShieldDrone(droneRule)
@@ -246,8 +253,8 @@ export class SpawnSystem {
   }
 
   private spawnMineLayer(dtMs: number, viewport: { width: number; height: number }) {
-    const cfg = this.enemyConfig?.mineLayer
-    if (!cfg || this.enemyStage < cfg.minStage) return
+    const cfg = this.enemyConfig.mineLayer
+    if (this.enemyStage < cfg.minStage) return
     if (this.mineLayerGateJustOpened) {
       this.mineLayerGateJustOpened = false
       return
@@ -260,7 +267,7 @@ export class SpawnSystem {
     if (this.rng() >= cfg.spawnChance) return
     const enemy = this.mineLayerPool.pop() ?? new MineLayer(cfg)
     if (!this.mineLayerViews.has(enemy)) this.mineLayerViews.set(enemy, new MineLayerView(cfg))
-    enemy.spawn(viewport, this.rng() < 0.5, this.enemyStageMultiplier, this.rng())
+    enemy.spawn(viewport, this.rng() < this.config.spawn.mineLayerLeftChance, this.enemyStageMultiplier, this.rng())
     const visual = this.mineLayerViews.get(enemy)!
     visual.sync(enemy)
     this.container.addChild(visual.view)
@@ -286,7 +293,8 @@ export class SpawnSystem {
     bullet.spawn({ x: enemy.position.x, y: enemy.position.y,
       directionX: direction.x, directionY: direction.y,
       speed: cfg.speed, radius: cfg.radius, damage: cfg.damage,
-      lifetimeMs: cfg.lifetimeMs, color: cfg.color })
+      lifetimeMs: cfg.lifetimeMs, color: cfg.color,
+      pierceLeft: cfg.pierce, falloff: null })
     this.enemyBullets.push(bullet)
     this.container.addChild(bullet.view)
   }
@@ -350,7 +358,7 @@ export class SpawnSystem {
     this.mines = []
     this.minePool = []
     this.mineLayerPool = []
-    this.mineLayerSpawnRemainingMs = this.enemyConfig?.mineLayer?.firstSpawnDelayMs ?? 0
+    this.mineLayerSpawnRemainingMs = this.enemyConfig.mineLayer.firstSpawnDelayMs
     this.mineLayerGateJustOpened = true
     for (const visual of this.droneViews.values()) visual.destroy()
     this.droneViews.clear()
@@ -377,10 +385,10 @@ export class SpawnSystem {
     if (viewport.width <= 0 || viewport.height <= 0) return
 
     const type = this.rollType()
-    const cfg = getAsteroidConfig(type)
+    const cfg = this.config.asteroids.types[type]
 
     const edge = this.rollSpawnEdge()
-    const pad = cfg.radius + 12
+    const pad = cfg.radius + this.config.spawn.spawnPadding
 
     let x = 0
     let y = 0
@@ -405,11 +413,11 @@ export class SpawnSystem {
     const dirY = targetY - y
     const len = Math.hypot(dirX, dirY) || 1
 
-    const speed = cfg.speed * (0.85 + this.rng() * 0.3)
+    const speed = cfg.speed * (this.config.spawn.speedMultiplier.min + this.rng() * this.config.spawn.speedMultiplier.range)
     const vx = (dirX / len) * speed
     const vy = (dirY / len) * speed
 
-    const asteroid = this.pool.pop() ?? new AsteroidEntity({ visuals: this.asteroidVisuals })
+    const asteroid = this.pool.pop() ?? new AsteroidEntity(this.config.asteroids, { visuals: this.asteroidVisuals })
     if (this.asteroidVisuals) asteroid.setVisuals(this.asteroidVisuals)
     const visualScale = this.asteroidVisualScaleByType[type] ?? this.asteroidVisualScale
     asteroid.spawn({ type, x, y, velocityX: vx, velocityY: vy, stageMultiplier: this.stageMultiplier, visualScale })
@@ -429,11 +437,11 @@ export class SpawnSystem {
     return this.healZonesActive
   }
 
-  setTuning(next: Partial<SpawnTuning>) {
-    if (typeof next.maxActive === 'number') this.maxActive = Math.max(1, Math.floor(next.maxActive))
-    if (typeof next.spawnEveryMs === 'number') this.spawnEveryMs = Math.max(60, Math.floor(next.spawnEveryMs))
-    if (next.typeWeights) this.typeWeights = normalizeWeights(next.typeWeights)
-    if (typeof next.stageMultiplier === 'number') this.stageMultiplier = Math.max(0.1, next.stageMultiplier)
+  setTuning(next: SpawnTuning) {
+    this.maxActive = Math.max(1, Math.floor(next.maxActive))
+    this.spawnEveryMs = Math.max(this.config.spawn.minSpawnEveryMs, Math.floor(next.spawnEveryMs))
+    this.typeWeights = normalizeWeights(next.typeWeights)
+    this.stageMultiplier = next.stageMultiplier
   }
 
   setAsteroidVisualTuning(next: AsteroidVisualTuning) {
@@ -460,7 +468,7 @@ export class SpawnSystem {
   private rollType(): AsteroidType {
     const weights = this.typeWeights
     const total = weights.normal + weights.fast + weights.big + weights.armored
-    if (!(total > 0)) return 'normal'
+    if (!(total > 0)) throw new Error('Invalid asteroid weights')
 
     const r = this.rng() * total
     if (r < weights.normal) return 'normal'
@@ -472,10 +480,10 @@ export class SpawnSystem {
   private rollSpawnEdge() {
     // 0=top, 1=right, 2=bottom, 3=left
     // Anti-camp: favor spawns coming "from above" (top) and reduce bottom spawns.
-    const wTop = 0.46
-    const wRight = 0.22
-    const wBottom = 0.12
-    const wLeft = 0.2
+    const wTop = this.config.spawn.edgeWeights.top
+    const wRight = this.config.spawn.edgeWeights.right
+    const wBottom = this.config.spawn.edgeWeights.bottom
+    const wLeft = this.config.spawn.edgeWeights.left
     const total = wTop + wRight + wBottom + wLeft
     const r = this.rng() * total
     if (r < wTop) return 0
@@ -485,52 +493,52 @@ export class SpawnSystem {
   }
 
   private pickTarget(viewport: { width: number; height: number }) {
-    const player = this.getPlayerPosition?.()
-    const stageT = Math.max(0, Math.min(1, (this.stageMultiplier - 1) / 1))
-    const targetPlayerChance = Math.min(0.22, 0.08 + stageT * 0.12)
+    const player = this.getPlayerPosition()
+    const stageT = Math.max(0, Math.min(1, (this.stageMultiplier - 1) / this.config.spawn.targeting.stageSpan))
+    const targetPlayerChance = Math.min(this.config.spawn.targeting.maxChance, this.config.spawn.targeting.baseChance + stageT * this.config.spawn.targeting.stageChance)
 
     if (player && this.rng() < targetPlayerChance) {
-      const x = Math.max(24, Math.min(viewport.width - 24, player.x))
-      const y = Math.max(24, Math.min(viewport.height - 24, player.y))
+      const x = Math.max(this.config.spawn.targeting.playerPadding, Math.min(viewport.width - this.config.spawn.targeting.playerPadding, player.x))
+      const y = Math.max(this.config.spawn.targeting.playerPadding, Math.min(viewport.height - this.config.spawn.targeting.playerPadding, player.y))
       return { x, y }
     }
 
     return {
-      x: viewport.width * (0.2 + this.rng() * 0.6),
-      y: viewport.height * (0.2 + this.rng() * 0.6),
+      x: viewport.width * (this.config.spawn.targeting.areaStart + this.rng() * this.config.spawn.targeting.areaRange),
+      y: viewport.height * (this.config.spawn.targeting.areaStart + this.rng() * this.config.spawn.targeting.areaRange),
     }
   }
 
   private maybeSpawnDangerZone() {
-    if (this.dangerZonesActive.length >= 2) return
-    if (this.rng() > 0.35) return
+    if (this.dangerZonesActive.length >= this.config.zones.danger.maxActive) return
+    if (this.rng() > this.config.zones.danger.spawnChance) return
 
     const viewport = this.getViewportSize()
     if (viewport.width <= 0 || viewport.height <= 0) return
 
-    const pad = 90
+    const pad = this.config.zones.danger.spawnPadding
     const x = pad + this.rng() * Math.max(1, viewport.width - pad * 2)
     const y = pad + this.rng() * Math.max(1, viewport.height - pad * 2)
 
-    const zone = this.dangerZonesPool.pop() ?? new DangerZoneEntity()
-    zone.spawn({ x, y, ttlMs: 10_000, radius: 54 })
+    const zone = this.dangerZonesPool.pop() ?? new DangerZoneEntity(this.config.zones.danger)
+    zone.spawn({ x, y, ttlMs: this.config.zones.danger.ttlMs, radius: this.config.zones.danger.radius })
     this.dangerZonesActive.push(zone)
     this.zonesContainer.addChild(zone.view)
   }
 
   private maybeSpawnHealZone() {
-    if (this.healZonesActive.length >= 1) return
-    if (this.rng() > 0.22) return
+    if (this.healZonesActive.length >= this.config.zones.heal.maxActive) return
+    if (this.rng() > this.config.zones.heal.spawnChance) return
 
     const viewport = this.getViewportSize()
     if (viewport.width <= 0 || viewport.height <= 0) return
 
-    const pad = 90
+    const pad = this.config.zones.heal.spawnPadding
     const x = pad + this.rng() * Math.max(1, viewport.width - pad * 2)
     const y = pad + this.rng() * Math.max(1, viewport.height - pad * 2)
 
-    const zone = this.healZonesPool.pop() ?? new HealZoneEntity()
-    zone.spawn({ x, y, ttlMs: 5_000, radius: 46 })
+    const zone = this.healZonesPool.pop() ?? new HealZoneEntity(this.config.zones.heal)
+    zone.spawn({ x, y, ttlMs: this.config.zones.heal.ttlMs, radius: this.config.zones.heal.radius })
     this.healZonesActive.push(zone)
     this.zonesContainer.addChild(zone.view)
   }
@@ -538,14 +546,14 @@ export class SpawnSystem {
 
 function normalizeWeights(weights: Record<AsteroidType, number>): Record<AsteroidType, number> {
   const next: Record<AsteroidType, number> = {
-    normal: Math.max(0, weights.normal ?? 0),
-    fast: Math.max(0, weights.fast ?? 0),
-    big: Math.max(0, weights.big ?? 0),
-    armored: Math.max(0, weights.armored ?? 0),
+    normal: Math.max(0, weights.normal),
+    fast: Math.max(0, weights.fast),
+    big: Math.max(0, weights.big),
+    armored: Math.max(0, weights.armored),
   }
 
   const total = next.normal + next.fast + next.big + next.armored
-  if (!(total > 0)) return { normal: 1, fast: 0, big: 0, armored: 0 }
+  if (!(total > 0) || !Number.isFinite(total)) throw new Error('Invalid asteroid weights')
 
   next.normal /= total
   next.fast /= total

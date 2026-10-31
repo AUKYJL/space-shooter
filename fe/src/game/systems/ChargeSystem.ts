@@ -1,3 +1,4 @@
+import type { WeaponsConfig } from '@/game/core/gameplayConfig'
 import type { EventBus, Unsubscribe } from '@/game/core/EventBus'
 import type { AsteroidType } from '@/game/entities/Asteroid'
 import type { RunBridgeEventMap } from '@/game/ui-bridge/gameToReact'
@@ -11,14 +12,17 @@ export class ChargeSystem {
   private shooting: ShootingSystem
   private unsub: Unsubscribe | null = null
 
-  constructor(options: { events: EventBus<RunBridgeEventMap>; shooting: ShootingSystem }) {
+  private config: WeaponsConfig['charge']
+
+  constructor(config: WeaponsConfig['charge'], options: { events: EventBus<RunBridgeEventMap>; shooting: ShootingSystem }) {
+    this.config = config
     this.events = options.events
     this.shooting = options.shooting
   }
 
   mount() {
     this.unsub = this.events.on('charge:activate', () => {
-      if (this.charge <= 0.02) return
+      if (this.charge <= this.config.activationThreshold) return
       this.shooting.fireChargedShot()
       haptics.chargeShot()
       this.charge = 0
@@ -26,7 +30,7 @@ export class ChargeSystem {
   }
 
   onAsteroidDestroyed(type: AsteroidType) {
-    const add = type === 'armored' ? 0.22 : type === 'big' ? 0.16 : type === 'fast' ? 0.08 : 0.1
+    const add = this.config.gains[type]
     this.charge = Math.min(1, this.charge + add)
   }
 

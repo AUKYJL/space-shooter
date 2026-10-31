@@ -1,4 +1,5 @@
 export type SentryTurretConfig = Readonly<{
+  contactDamage: number
   minStage: number
   spawnChance: number
   firstSpawnDelayMs: number
@@ -24,10 +25,11 @@ export type SentryTurretConfig = Readonly<{
   outlineColor: number
   outlineWidth: number
   hpBar: Readonly<{ offset: number; height: number; backgroundColor: number; color: number }>
-  bullet: Readonly<{ speed: number; radius: number; damage: number; lifetimeMs: number; maxActive: number; color: number }>
+  bullet: Readonly<{ pierce: number; speed: number; radius: number; damage: number; lifetimeMs: number; maxActive: number; color: number }>
 }>
 
 export const SENTRY_TURRET_CONFIG: SentryTurretConfig = Object.freeze({
+  contactDamage: 1,
   minStage: 2,
   spawnChance: 1,
   firstSpawnDelayMs: 2000,
@@ -53,5 +55,5 @@ export const SENTRY_TURRET_CONFIG: SentryTurretConfig = Object.freeze({
   outlineColor: 0xeeeeff,
   outlineWidth: 2,
   hpBar: Object.freeze({ offset: 9, height: 4, backgroundColor: 0x222233, color: 0x66ff99 }),
-  bullet: Object.freeze({ speed: 220, radius: 4, damage: 1, lifetimeMs: 4000, maxActive: 16, color: 0xff6655 }),
+  bullet: Object.freeze({ pierce: 0, speed: 220, radius: 4, damage: 1, lifetimeMs: 4000, maxActive: 16, color: 0xff6655 }),
 })

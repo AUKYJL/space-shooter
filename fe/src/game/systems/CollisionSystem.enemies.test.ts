@@ -1,3 +1,4 @@
+import { GAMEPLAY_CONFIG, BULLET_OPTIONS } from '@/test/runConfig'
 import { ENEMY_CONFIG } from '@/test/enemyConfig'
 import { Container } from 'pixi.js'
 import { describe, expect, it, vi } from 'vitest'
@@ -9,9 +10,9 @@ import { CollisionSystem } from './CollisionSystem'
 import type { ShootingSystem } from './ShootingSystem'
 
 function setup() {
-  const player = new PlayerShip({ maxHp: 5 })
+  const player = new PlayerShip({ config: GAMEPLAY_CONFIG.player, maxHp: 5 })
   player.setPosition(200, 700)
-  const spawns = new SpawnSystem({ container: new Container(), getViewportSize: () => ({ width: 400, height: 800 }),
+  const spawns = new SpawnSystem(GAMEPLAY_CONFIG, { getPlayerPosition: () => ({ x: 200, y: 700 }), container: new Container(), getViewportSize: () => ({ width: 400, height: 800 }),
     rng: () => 0.5, enemies: ENEMY_CONFIG })
   spawns.setEnemyStage(2, 1)
   spawns.update(16); spawns.update(2000)
@@ -20,11 +21,11 @@ function setup() {
   const bullets: Bullet[] = []
   const shooting = { getBullets: () => bullets, despawnBullet: (b: Bullet) => b.despawn() } as unknown as ShootingSystem
   const camera = vi.fn()
-  const collisions = new CollisionSystem({ player, shooting, spawns, onPlayerDamaged: camera })
+  const collisions = new CollisionSystem(GAMEPLAY_CONFIG.player.invulnerabilityMs, { player, shooting, spawns, onPlayerDamaged: camera })
   function shoot(damage: number, pierceLeft = 0, falloff?: { startPx: number; endPx: number }) {
     const bullet = new Bullet()
-    bullet.spawn({ x: enemy.position.x, y: enemy.position.y, directionX: 0, directionY: 0,
-      speed: 0, damage, pierceLeft, falloff })
+    bullet.spawn({ ...BULLET_OPTIONS, x: enemy.position.x, y: enemy.position.y, directionX: 0, directionY: 0,
+      speed: 0, damage, pierceLeft, falloff: falloff ?? null })
     bullets.push(bullet)
     return bullet
   }
@@ -55,8 +56,8 @@ describe('CollisionSystem enemies', () => {
 
   it('shares piercing across asteroid/enemy targets and preserves damage falloff', () => {
     const s = setup()
-    const asteroid = new Asteroid()
-    asteroid.spawn({ type: 'normal', x: s.enemy.position.x, y: s.enemy.position.y, velocityX: 0, velocityY: 0 })
+    const asteroid = new Asteroid(GAMEPLAY_CONFIG.asteroids)
+    asteroid.spawn({ stageMultiplier: 1, type: 'normal', x: s.enemy.position.x, y: s.enemy.position.y, velocityX: 0, velocityY: 0 })
     vi.spyOn(s.spawns, 'getAsteroids').mockReturnValue([asteroid])
     const plasma = s.shoot(1, 3)
     s.collisions.update(16)
@@ -67,7 +68,7 @@ describe('CollisionSystem enemies', () => {
     expect(s.enemy.hp).toBe(11)
     vi.spyOn(s.spawns, 'getAsteroids').mockReturnValue([])
     const pellet = s.shoot(8, 0, { startPx: 0, endPx: 10 })
-    pellet.spawn({ x: s.enemy.position.x - 20, y: s.enemy.position.y, directionX: 1, directionY: 0,
+    pellet.spawn({ ...BULLET_OPTIONS, x: s.enemy.position.x - 20, y: s.enemy.position.y, directionX: 1, directionY: 0,
       speed: 20, damage: 8, falloff: { startPx: 0, endPx: 10 }, lifetimeMs: 2000 })
     pellet.update(1000)
     s.collisions.update(16)

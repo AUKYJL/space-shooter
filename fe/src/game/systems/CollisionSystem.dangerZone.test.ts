@@ -1,3 +1,4 @@
+import { GAMEPLAY_CONFIG } from '@/test/runConfig'
 import { describe, expect, it } from 'vitest'
 
 import { DangerZone } from '@/game/entities/DangerZone'
@@ -8,10 +9,10 @@ import type { SpawnSystem } from '@/game/systems/SpawnSystem'
 
 describe('CollisionSystem danger zone', () => {
   it('applies 1 damage per second while inside (dt accumulation)', () => {
-    const player = new PlayerShip({ maxHp: 5 })
+    const player = new PlayerShip({ config: GAMEPLAY_CONFIG.player, maxHp: 5 })
     player.setPosition(100, 100)
 
-    const zone = new DangerZone()
+    const zone = new DangerZone(GAMEPLAY_CONFIG.zones.danger)
     zone.spawn({ x: 100, y: 100, ttlMs: 10_000, radius: 60 })
 
     const shooting = {
@@ -25,7 +26,7 @@ describe('CollisionSystem danger zone', () => {
       getHealZones: () => [],
     } as unknown as SpawnSystem
 
-    const collisions = new CollisionSystem({ player, shooting, spawns })
+    const collisions = new CollisionSystem(GAMEPLAY_CONFIG.player.invulnerabilityMs, { player, shooting, spawns })
 
     collisions.update(400)
     collisions.update(400)

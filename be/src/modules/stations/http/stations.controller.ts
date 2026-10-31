@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Param, Post } from "@nestjs/common";
-import { CurrentUser, type CurrentUser as CurrentUserType } from "../../../common/guards/current-user.decorator";
+import { CurrentUser, type CurrentUser as CurrentUserType } from "../../../shared/guards/current-user.decorator";
 import { StationsService } from "../stations.service";
 import { AssignStationDto } from "./dto/assign-station.dto";
 import { UnlockStationDto } from "./dto/unlock-station.dto";

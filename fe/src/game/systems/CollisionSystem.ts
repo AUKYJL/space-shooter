@@ -15,9 +15,10 @@ export class CollisionSystem {
   private onPlayerDamaged: (() => void) | null
 
   private invulnRemainingMs = 0
-  private invulnAfterHitMs = 450
+  private invulnAfterHitMs: number
 
-  constructor(options: { player: PlayerShip; shooting: ShootingSystem; spawns: SpawnSystem; onPlayerDamaged?: () => void }) {
+  constructor(invulnerabilityMs: number, options: { player: PlayerShip; shooting: ShootingSystem; spawns: SpawnSystem; onPlayerDamaged?: () => void }) {
+    this.invulnAfterHitMs = invulnerabilityMs
     this.player = options.player
     this.shooting = options.shooting
     this.spawns = options.spawns
@@ -83,7 +84,7 @@ export class CollisionSystem {
       if (target instanceof MineLayer && !target.canDamagePlayer) continue
       if (!this.player.intersectsCircle(target.position.x, target.position.y, target.radius)) continue
 
-      this.damagePlayer(target instanceof MineLayer ? target.config.contactDamage : 1)
+      this.damagePlayer(target.contactDamage)
       return
     }
   }
@@ -133,7 +134,7 @@ export class CollisionSystem {
         zone.tickAccumMs -= zone.damageTickMs
         if (this.invulnRemainingMs > 0) continue
         if (this.player.hp <= 0) return
-        this.player.hp = Math.max(0, this.player.hp - 1)
+        this.player.hp = Math.max(0, this.player.hp - zone.amount)
         haptics.damage()
         this.onPlayerDamaged?.()
         this.invulnRemainingMs = this.invulnAfterHitMs
@@ -158,7 +159,7 @@ export class CollisionSystem {
         zone.tickAccumMs -= zone.healTickMs
         if (this.player.hp <= 0) return
         if (this.player.hp >= this.player.maxHp) return
-        this.player.hp = Math.min(this.player.maxHp, this.player.hp + 1)
+        this.player.hp = Math.min(this.player.maxHp, this.player.hp + zone.amount)
       }
     }
   }

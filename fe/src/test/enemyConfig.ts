@@ -2,6 +2,7 @@
 import type { SentryTurretConfig, ShieldDroneConfig, MineLayerConfig } from '@/game/core/enemyConfig'
 
 export const SENTRY_TURRET_CONFIG: SentryTurretConfig = {
+  contactDamage: 1,
   minStage: 2,
   spawnChance: 1,
   firstSpawnDelayMs: 2000,
@@ -27,10 +28,11 @@ export const SENTRY_TURRET_CONFIG: SentryTurretConfig = {
   outlineColor: 0xeeeeff,
   outlineWidth: 2,
   hpBar: Object.freeze({ offset: 9, height: 4, backgroundColor: 0x222233, color: 0x66ff99 }),
-  bullet: Object.freeze({ speed: 220, radius: 4, damage: 1, lifetimeMs: 4000, maxActive: 16, color: 0xff6655 }),
+  bullet: Object.freeze({ pierce: 0, speed: 220, radius: 4, damage: 1, lifetimeMs: 4000, maxActive: 16, color: 0xff6655 }),
 }
 
 export const SHIELD_DRONE_CONFIG: ShieldDroneConfig = {
+  contactDamage: 1,
   minStage: 3,
   spawnChance: 0.5,
   maxActive: 1,

@@ -1,10 +1,11 @@
+import { GAMEPLAY_CONFIG } from '@/test/runConfig'
 import { describe, expect, it } from 'vitest'
 import { AnimatedSprite, Sprite, Texture } from 'pixi.js'
 import { PlayerShip } from '@/game/entities/PlayerShip'
 
 describe('PlayerShip', () => {
   it('creates ship sprite + looping flame animation', () => {
-    const ship = new PlayerShip({
+    const ship = new PlayerShip({ config: GAMEPLAY_CONFIG.player,
       maxHp: 10,
       visuals: {
         shipTexture: Texture.WHITE,
@@ -23,7 +24,7 @@ describe('PlayerShip', () => {
   })
 
   it('uses triangular hitbox when visuals are provided', () => {
-    const ship = new PlayerShip({
+    const ship = new PlayerShip({ maxHp: 10, config: GAMEPLAY_CONFIG.player,
       visuals: {
         shipTexture: Texture.WHITE,
         flameTextures: [Texture.WHITE, Texture.WHITE, Texture.WHITE, Texture.WHITE],

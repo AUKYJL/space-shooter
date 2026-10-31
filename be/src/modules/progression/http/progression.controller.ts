@@ -1,5 +1,5 @@
 import { Controller, Get } from "@nestjs/common";
-import { CurrentUser, type CurrentUser as CurrentUserType } from "../../../common/guards/current-user.decorator";
+import { CurrentUser, type CurrentUser as CurrentUserType } from "../../../shared/guards/current-user.decorator";
 import { ProgressionService } from "../progression.service";
 
 @Controller("/me")

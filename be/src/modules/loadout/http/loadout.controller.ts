@@ -1,6 +1,6 @@
 import { Body, Controller, Get, Patch } from "@nestjs/common";
-import { Auth } from "../../../common/guards/auth.decorator";
-import { CurrentUser, type CurrentUser as CurrentUserType } from "../../../common/guards/current-user.decorator";
+import { Auth } from "../../../shared/guards/auth.decorator";
+import { CurrentUser, type CurrentUser as CurrentUserType } from "../../../shared/guards/current-user.decorator";
 import { LoadoutService } from "../loadout.service";
 import { SetWeaponDto } from "./dto/set-weapon.dto";
 

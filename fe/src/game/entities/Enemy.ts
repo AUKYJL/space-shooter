@@ -4,6 +4,7 @@ export interface DamageableTarget {
   readonly position: Position
   readonly radius: number
   readonly active: boolean
+  readonly contactDamage: number
   readonly hp: number
   takeDamage(amount: number): void
   isDead(): boolean

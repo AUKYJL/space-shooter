@@ -1,6 +1,6 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../../infra/prisma/prisma.service";
-import { type UpgradeId } from "../../common/ids";
+import { type UpgradeId } from "../../shared/ids";
 
 @Injectable()
 export class ProgressionService {

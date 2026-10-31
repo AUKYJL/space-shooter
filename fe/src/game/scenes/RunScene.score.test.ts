@@ -1,13 +1,14 @@
+import { GAMEPLAY_CONFIG, RUN_CONFIG, SCENE_TUNING } from '@/test/runConfig'
 import { Container } from 'pixi.js'
 import { describe, expect, it, vi } from 'vitest'
 import { RunScene } from './RunScene'
 import { EventBus } from '@/game/core/EventBus'
 import type { RunBridgeEventMap, RunHudState, RunSummary } from '@/game/ui-bridge/gameToReact'
 
-const makeConfig = () => ({ version: 1, asteroidPoints: { normal: 10, fast: 20, big: 30, armored: 50 }, stageBonus: 100 })
+const makeConfig = () => ({ ...RUN_CONFIG, version: 7, asteroidPoints: { normal: 10, fast: 20, big: 30, armored: 50 }, stageBonus: 100 })
 function setup(config = makeConfig()) {
   const events = new EventBus<RunBridgeEventMap>()
-  const scene = new RunScene({ canvas: document.createElement('canvas'), getViewportSize: () => ({ width: 400, height: 800 }), events, scoringConfig: config })
+  const scene = new RunScene({ gameplayConfig: GAMEPLAY_CONFIG, weaponId: 'basic_laser', tuning: SCENE_TUNING, canvas: document.createElement('canvas'), getViewportSize: () => ({ width: 400, height: 800 }), events, scoringConfig: config })
   scene.mount(new Container())
   const state = scene as unknown as {
     spawns: { onAsteroidDestroyed: (asteroid: { type: string; view: { position: { x: number; y: number } } }) => void }

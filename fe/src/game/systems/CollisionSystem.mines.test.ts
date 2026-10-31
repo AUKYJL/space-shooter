@@ -1,3 +1,4 @@
+import { GAMEPLAY_CONFIG, BULLET_OPTIONS } from '@/test/runConfig'
 import { describe, expect, it, vi } from 'vitest'
 import { Mine } from '@/game/entities/Mine'
 import { MineLayer } from '@/game/entities/MineLayer'
@@ -9,7 +10,7 @@ import type { SpawnSystem } from './SpawnSystem'
 import type { ShootingSystem } from './ShootingSystem'
 
 function setup() {
-  const player = new PlayerShip({ maxHp: 5 })
+  const player = new PlayerShip({ config: GAMEPLAY_CONFIG.player, maxHp: 5 })
   player.setPosition(200, 500)
   const mines: Mine[] = []
   const ships: MineLayer[] = []
@@ -19,7 +20,7 @@ function setup() {
     getHealZones: () => [], getEnemyBullets: () => hostile, despawnEnemyBullet: (b: Bullet) => b.despawn() } as unknown as SpawnSystem
   const shooting = { getBullets: () => bullets, despawnBullet: (b: Bullet) => b.despawn() } as unknown as ShootingSystem
   const damaged = vi.fn()
-  const collisions = new CollisionSystem({ player, spawns, shooting, onPlayerDamaged: damaged })
+  const collisions = new CollisionSystem(GAMEPLAY_CONFIG.player.invulnerabilityMs, { player, spawns, shooting, onPlayerDamaged: damaged })
   function mine(x = 200, y = 500) {
     const result = new Mine(cfg.mine)
     result.spawn({ x, y })
@@ -28,7 +29,7 @@ function setup() {
   }
   function shoot(damage = 1, pierceLeft = 0, falloff?: { startPx: number; endPx: number }) {
     const b = new Bullet()
-    b.spawn({ x: 200, y: 500, directionX: 1, directionY: 0, speed: 0, damage, pierceLeft, falloff })
+    b.spawn({ ...BULLET_OPTIONS, x: 200, y: 500, directionX: 1, directionY: 0, speed: 0, damage, pierceLeft, falloff: falloff ?? null })
     bullets.push(b)
     return b
   }
@@ -111,7 +112,7 @@ describe('CollisionSystem mines', () => {
     tough.spawn({ x: 200, y: 500 })
     s.mines.push(tough)
     const pellet = s.shoot(8, 0, { startPx: 0, endPx: 10 })
-    pellet.spawn({ x: 180, y: 500, directionX: 1, directionY: 0, speed: 20, damage: 8,
+    pellet.spawn({ ...BULLET_OPTIONS, x: 180, y: 500, directionX: 1, directionY: 0, speed: 20, damage: 8,
       falloff: { startPx: 0, endPx: 10 }, lifetimeMs: 2000 })
     pellet.update(1000)
     s.collisions.update(16)
@@ -128,7 +129,7 @@ describe('CollisionSystem mines', () => {
     s.collisions.update(16)
     expect(s.player.hp).toBe(5)
     const b = new Bullet()
-    b.spawn({ x: ship.position.x, y: ship.position.y, directionX: 0, directionY: 0, speed: 0 })
+    b.spawn({ ...BULLET_OPTIONS, x: ship.position.x, y: ship.position.y, directionX: 0, directionY: 0, speed: 0 })
     s.hostile.push(b)
     s.collisions.update(16)
     expect(s.player.hp).toBe(4)

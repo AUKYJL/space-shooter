@@ -1,6 +1,6 @@
 import { Body, Controller, HttpCode, Post, Req, Res, UnauthorizedException } from "@nestjs/common";
 import type { CookieOptions, Request, Response } from "express";
-import { PublicRoute } from "../../common/guards/public-route.decorator";
+import { PublicRoute } from "../../shared/guards/public-route.decorator";
 import { AuthService } from "./auth.service";
 import { CredentialsDto } from "./dto/credentials.dto";
 

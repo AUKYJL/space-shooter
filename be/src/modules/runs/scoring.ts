@@ -1,3 +1,5 @@
+import type { GameplayConfig } from "./config/runConfig";
+import { LEGACY_RUN_RULES } from "./config/legacyRunRules";
 import { BadRequestException } from "@nestjs/common";
 import type { FinishRunDto } from "./http/dto/finish-run.dto";
 
@@ -6,7 +8,7 @@ import { SHIELD_DRONE_CONFIG, type ShieldDroneConfig } from "./config/shieldDron
 import { MINE_LAYER_CONFIG, type MineLayerConfig } from "./config/mineLayerConfig";
 
 export const SCORING_CONFIG = Object.freeze({
-  version: 6,
+  version: 7,
   asteroidPoints: Object.freeze({ normal: 10, fast: 20, big: 30, armored: 50 }),
   stageBonus: 100,
   enemyPoints: Object.freeze({ sentryTurret: 100, shieldDrone: 50, mineLayer: 150 }),
@@ -41,11 +43,17 @@ export function calculateScore(config: ScoringConfig, destroyed: ScoringConfig["
 }
 
 // Conservative bounds for the existing client runtime, not proof of gameplay.
-export function getSuspicionReasons(input: FinishRunDto, startedAt: Date, now: Date, config: ScoringConfig = SCORING_CONFIG) {
+export function getSuspicionReasons(input: FinishRunDto, startedAt: Date, now: Date, config: ScoringConfig, gameplay?: GameplayConfig) {
   const reasons: string[] = [];
+  if (config.version >= 7 && !gameplay) return ["missing gameplay snapshot"];
+  const rules = config.version >= 7 ? gameplay! : LEGACY_RUN_RULES;
+  const extraction = rules.extraction;
+  const firstStageMs = extraction.firstSpawnMs + extraction.ttlMs;
+  const stageCycleMs = extraction.spawnEveryMs + extraction.ttlMs;
+  const earliestStage = (stage: number) => stage <= 1 ? 0 : firstStageMs + (stage - 2) * stageCycleMs;
   const { durationMs, endedBy, extractionCount, rewardMultiplier, summary } = input;
   const { destroyedByType: d, stageReached, asteroidsDestroyed: total } = summary;
-  if (durationMs < 1_000 || durationMs > 10_800_000 || durationMs > now.getTime() - startedAt.getTime() + 2_000) {
+  if (durationMs < extraction.minDurationMs || durationMs > extraction.maxDurationMs || durationMs > now.getTime() - startedAt.getTime() + extraction.clockToleranceMs) {
     reasons.push("duration");
   }
   if (total !== d.normal + d.fast + d.big + d.armored
@@ -54,14 +62,14 @@ export function getSuspicionReasons(input: FinishRunDto, startedAt: Date, now: D
     || (summary.rareAsteroidsDestroyed !== undefined && summary.rareAsteroidsDestroyed !== d.fast)) {
     reasons.push("destroyed totals");
   }
-  if (total > 1 + Math.floor(durationMs / 60)) reasons.push("spawn bound");
+  if (total > 1 + Math.floor(durationMs / rules.spawn.minSpawnEveryMs)) reasons.push("spawn bound");
   const turretKills = summary.enemiesDestroyed?.sentryTurret ?? 0;
   if (turretKills > 0) {
     const rule = config.version >= 4 ? config.enemies?.sentryTurret : config.enemySpawnRules?.sentryTurret;
     if (!rule || !config.enemyPoints || config.version < 2) {
       reasons.push("enemy config");
     } else {
-      const earliestStageMs = rule.minStage <= 1 ? 0 : 22_000 + (rule.minStage - 2) * 32_000;
+      const earliestStageMs = earliestStage(rule.minStage);
       const earliestSpawnMs = earliestStageMs + rule.firstSpawnDelayMs;
       const disabled = rule.maxActive < 1 || (config.version >= 4 && config.enemies!.sentryTurret.spawnChance <= 0);
       const maxKills = disabled || durationMs < earliestSpawnMs ? 0 : 1 + Math.floor((durationMs - earliestSpawnMs) / rule.spawnEveryMs);
@@ -75,7 +83,6 @@ export function getSuspicionReasons(input: FinishRunDto, startedAt: Date, now: D
     if (config.version < 3 || !droneRule || !turretRule || config.enemyPoints?.shieldDrone === undefined) {
       reasons.push("drone config");
     } else {
-      const earliestStage = (stage: number) => stage <= 1 ? 0 : 22_000 + (stage - 2) * 32_000;
       // A turret timer may already be ready when the drone stage opens.
       const earliestSpawnMs = Math.max(earliestStage(droneRule.minStage),
         earliestStage(turretRule.minStage) + turretRule.firstSpawnDelayMs);
@@ -92,25 +99,25 @@ export function getSuspicionReasons(input: FinishRunDto, startedAt: Date, now: D
     if (config.version < 5 || !rule || config.enemyPoints?.mineLayer === undefined) {
       reasons.push("mine layer config");
     } else {
-      const earliestStageMs = rule.minStage <= 1 ? 0 : 22_000 + (rule.minStage - 2) * 32_000;
+      const earliestStageMs = earliestStage(rule.minStage);
       const earliestSpawnMs = earliestStageMs + rule.firstSpawnDelayMs;
       const maxKills = rule.maxActive < 1 || rule.spawnChance <= 0 || durationMs < earliestSpawnMs
         ? 0 : 1 + Math.floor((durationMs - earliestSpawnMs) / rule.spawnEveryMs);
       if (stageReached < rule.minStage || mineLayerKills > maxKills) reasons.push("mine layer spawn bound");
     }
   }
-  const maxStage = durationMs < 22_000 ? 1 : 2 + Math.floor((durationMs - 22_000) / 32_000);
+  const maxStage = durationMs < firstStageMs ? 1 : 2 + Math.floor((durationMs - firstStageMs) / stageCycleMs);
   if (stageReached > maxStage) reasons.push("stage timing");
-  if (Math.abs(rewardMultiplier - (1 + (stageReached - 1) * 0.15)) > 0.000001) {
+  if (Math.abs(rewardMultiplier - (1 + (stageReached - 1) * rules.difficulty.stageMultiplierStep)) > 0.000001) {
     reasons.push("multiplier");
   }
   if (extractionCount !== (endedBy === "extract" ? 1 : 0)
-    || (endedBy === "extract" && durationMs < 12_000 + (stageReached - 1) * 32_000)) {
+    || (endedBy === "extract" && durationMs < extraction.firstSpawnMs + (stageReached - 1) * stageCycleMs)) {
     reasons.push("extraction");
   }
   // Every asteroid drops at most one ore and crystal, and base coins + [0, 2].
-  if (summary.coinsCollected > d.normal * 5 + d.fast * 4 + d.big * 6 + d.armored * 7
-    || summary.resourcesCollected.ore > total || summary.resourcesCollected.crystal > total) {
+  if (summary.coinsCollected > (["normal", "fast", "big", "armored"] as const).reduce((sum, type) => sum + d[type] * (rules.loot.drops[type].coins + rules.loot.coinBonusExclusive - 1), 0)
+    || summary.resourcesCollected.ore > total * rules.loot.resourceAmount || summary.resourcesCollected.crystal > total * rules.loot.resourceAmount) {
     reasons.push("loot bound");
   }
   return reasons;

@@ -1,6 +1,6 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../../infra/prisma/prisma.service";
-import { WEAPON_ID, type WeaponId } from "../../common/ids";
+import { WEAPON_ID, type WeaponId } from "../../shared/ids";
 
 @Injectable()
 export class LoadoutService {
@@ -46,4 +46,3 @@ export class LoadoutService {
     return loadout;
   }
 }
-

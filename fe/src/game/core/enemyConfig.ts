@@ -1,5 +1,6 @@
 // Server response types only; no frontend enemy tuning defaults.
 export type SentryTurretConfig = Readonly<{
+  contactDamage: number
   minStage: number
   spawnChance: number
   firstSpawnDelayMs: number
@@ -25,10 +26,11 @@ export type SentryTurretConfig = Readonly<{
   outlineColor: number
   outlineWidth: number
   hpBar: Readonly<{ offset: number; height: number; backgroundColor: number; color: number }>
-  bullet: Readonly<{ speed: number; radius: number; damage: number; lifetimeMs: number; maxActive: number; color: number }>
+  bullet: Readonly<{ pierce: number; speed: number; radius: number; damage: number; lifetimeMs: number; maxActive: number; color: number }>
 }>
 
 export type ShieldDroneConfig = Readonly<{
+  contactDamage: number
   minStage: number
   spawnChance: number
   maxActive: number

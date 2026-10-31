@@ -1,3 +1,4 @@
+import { GAMEPLAY_CONFIG, SCENE_TUNING } from '@/test/runConfig'
 import { Container } from 'pixi.js'
 import { describe, expect, it, vi } from 'vitest'
 import { RunScene } from './RunScene'
@@ -8,12 +9,12 @@ import type { DifficultySystem } from '@/game/systems/DifficultySystem'
 import type { PlayerShip } from '@/game/entities/PlayerShip'
 import { ENEMY_CONFIG } from '@/test/enemyConfig'
 
-function setup(version = 5) {
+function setup(version = 7) {
   const config = { version, asteroidPoints: { normal: 10, fast: 20, big: 30, armored: 50 }, stageBonus: 100,
     enemyPoints: { sentryTurret: 100, shieldDrone: 50, mineLayer: 150 },
     enemies: { ...ENEMY_CONFIG, sentryTurret: { ...ENEMY_CONFIG.sentryTurret, spawnChance: 0 } } }
   const events = new EventBus<RunBridgeEventMap>()
-  const scene = new RunScene({ canvas: document.createElement('canvas'), events, scoringConfig: config,
+  const scene = new RunScene({ gameplayConfig: GAMEPLAY_CONFIG, weaponId: 'basic_laser', tuning: SCENE_TUNING, canvas: document.createElement('canvas'), events, scoringConfig: config,
     getViewportSize: () => ({ width: 400, height: 800 }) })
   scene.mount(new Container())
   const state = scene as unknown as { spawns: SpawnSystem; difficulty: DifficultySystem; player: PlayerShip }
@@ -69,11 +70,7 @@ describe('RunScene MineLayer', () => {
     expect(mine.visible).toBe(false)
   })
 
-  it('does not enable Mine Layer with an older snapshot even if its config is present', () => {
-    const { scene, state } = setup(4)
-    scene.update(10000)
-    expect(state.spawns.getEnemies()).toHaveLength(0)
-    expect(state.spawns.getMines()).toHaveLength(0)
-    scene.destroy()
+  it('rejects an older snapshot even if its enemy config is present', () => {
+    expect(() => setup(4)).toThrow('Unsupported run configuration')
   })
 })

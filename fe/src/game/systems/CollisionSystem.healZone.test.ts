@@ -1,3 +1,4 @@
+import { GAMEPLAY_CONFIG } from '@/test/runConfig'
 import { describe, expect, it } from 'vitest'
 
 import { HealZone } from '@/game/entities/HealZone'
@@ -8,11 +9,11 @@ import type { SpawnSystem } from '@/game/systems/SpawnSystem'
 
 describe('CollisionSystem heal zone', () => {
   it('heals 1 hp per second while inside (no overheal)', () => {
-    const player = new PlayerShip({ maxHp: 5 })
+    const player = new PlayerShip({ config: GAMEPLAY_CONFIG.player, maxHp: 5 })
     player.hp = 3
     player.setPosition(100, 100)
 
-    const zone = new HealZone()
+    const zone = new HealZone(GAMEPLAY_CONFIG.zones.heal)
     zone.spawn({ x: 100, y: 100, ttlMs: 5_000, radius: 60 })
 
     const shooting = {
@@ -26,7 +27,7 @@ describe('CollisionSystem heal zone', () => {
       getHealZones: () => [zone],
     } as unknown as SpawnSystem
 
-    const collisions = new CollisionSystem({ player, shooting, spawns })
+    const collisions = new CollisionSystem(GAMEPLAY_CONFIG.player.invulnerabilityMs, { player, shooting, spawns })
 
     collisions.update(999)
     expect(player.hp).toBe(3)

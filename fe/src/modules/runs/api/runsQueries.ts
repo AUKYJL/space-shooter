@@ -1,3 +1,4 @@
+import { validateRunConfig, validateRunStart } from "./validateRunConfig"
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import { qk } from '@/shared/api/queryKeys'
@@ -6,7 +7,14 @@ import type { MeResponse } from '@/modules/profile/api/profileApi'
 import { finishRun, getRunConfig, getRunHistory, startRun } from './runsApi'
 
 const configOptions = {
-  queryKey: qk.runConfig(), queryFn: getRunConfig, staleTime: Infinity, retry: false as const,
+  queryKey: qk.runConfig(),
+  queryFn: async () => {
+    const config = await getRunConfig()
+    validateRunConfig(config)
+    return config
+  },
+  staleTime: Infinity,
+  retry: false as const,
 }
 
 export function useRunConfigQuery(enabled = true) {
@@ -22,17 +30,19 @@ export function useStartRunMutation() {
   return useMutation({
     mutationFn: async ({ weaponId }: { weaponId: string }) => {
       let config = await qc.fetchQuery(configOptions)
+      validateRunConfig(config)
       try {
         const result = await startRun({ weaponId, scoringConfigVersion: config.version })
-        if (!result.snapshot.scoringConfig) throw new Error('Run snapshot config is missing')
-        return { ...result, scoringConfig: structuredClone(result.snapshot.scoringConfig) }
+        validateRunStart(result)
+        return structuredClone({ ...result, scoringConfig: result.snapshot.scoringConfig })
       } catch (error) {
         if (!(error instanceof ApiError) || error.status !== 409) throw error
         await qc.invalidateQueries({ queryKey: qk.runConfig(), refetchType: 'none' })
         config = await qc.fetchQuery(configOptions)
+        validateRunConfig(config)
         const result = await startRun({ weaponId, scoringConfigVersion: config.version })
-        if (!result.snapshot.scoringConfig) throw new Error('Run snapshot config is missing')
-        return { ...result, scoringConfig: structuredClone(result.snapshot.scoringConfig) }
+        validateRunStart(result)
+        return structuredClone({ ...result, scoringConfig: result.snapshot.scoringConfig })
       }
     },
   })

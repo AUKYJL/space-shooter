@@ -1,3 +1,5 @@
+import { DifficultySystem } from '@/game/systems/DifficultySystem'
+import { GAMEPLAY_CONFIG, } from '@/test/runConfig'
 import { Container } from 'pixi.js'
 import { describe, expect, it, vi } from 'vitest'
 import { SpawnSystem } from './SpawnSystem'
@@ -8,9 +10,9 @@ function setup(overrides: Partial<typeof cfg> = {}, rng = () => 0.25) {
   const onEnemyDestroyed = vi.fn()
   const enemies = { ...ENEMY_CONFIG, sentryTurret: { ...ENEMY_CONFIG.sentryTurret, spawnChance: 0 },
     mineLayer: { ...cfg, ...overrides } }
-  const system = new SpawnSystem({ container, getViewportSize: () => ({ width: 400, height: 800 }),
+  const system = new SpawnSystem(GAMEPLAY_CONFIG, { getPlayerPosition: () => ({ x: 200, y: 700 }), container, getViewportSize: () => ({ width: 400, height: 800 }),
     rng, enemies, onEnemyDestroyed })
-  system.setTuning({ spawnEveryMs: 1000000 })
+  system.setTuning({ ...new DifficultySystem(GAMEPLAY_CONFIG.difficulty).getSpawnTuning(), spawnEveryMs: 1000000 })
   return { system, container, onEnemyDestroyed, enemies }
 }
 function open(system: SpawnSystem) {

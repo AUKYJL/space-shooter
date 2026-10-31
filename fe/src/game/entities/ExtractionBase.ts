@@ -2,7 +2,7 @@ import { Container, Sprite, Texture } from 'pixi.js'
 
 export class ExtractionBase {
   view: Container
-  radius = 26
+  readonly radius: number
   active = false
 
   private sprite?: Sprite
@@ -10,7 +10,8 @@ export class ExtractionBase {
   private baseScale = 1
   private animTimeMs = 0
 
-  constructor(options?: { texture?: Texture }) {
+  constructor(options: { radius: number; texture?: Texture }) {
+    this.radius = options.radius
     this.view = new Container()
     this.texture = options?.texture
 

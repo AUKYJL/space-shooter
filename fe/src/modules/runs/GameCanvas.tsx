@@ -1,3 +1,4 @@
+import type { WeaponId } from '@/shared/lib/weapons'
 import { useEffect, useMemo, useRef } from 'react'
 
 import { GameApp } from '@/game/core/GameApp'
@@ -17,7 +18,7 @@ export function GameCanvas(props: {
 }) {
   const hostRef = useRef<HTMLDivElement | null>(null)
   const gameRef = useRef<GameApp | null>(null)
-  const tuning = useMemo(() => getRunTuningFromSnapshot(props.init.snapshot), [props.init.snapshot])
+  const tuning = useMemo(() => ({ ...props.init.snapshot.weaponTuning, maxHp: props.init.snapshot.maxHp }), [props.init.snapshot])
 
   useEffect(() => {
     const host = hostRef.current
@@ -63,6 +64,7 @@ export function GameCanvas(props: {
       game.setScene(
         new RunScene({
           scoringConfig: props.init.scoringConfig,
+          gameplayConfig: props.init.snapshot.gameplayConfig,
           canvas: game.getCanvas(),
           getViewportSize: () => game.getViewportSize(),
           events: props.events,
@@ -71,7 +73,7 @@ export function GameCanvas(props: {
           lootAssets,
           extractionBaseTexture: extractionAssets.base,
           tuning,
-          weaponId: props.init.snapshot.weaponId,
+          weaponId: props.init.snapshot.weaponId as WeaponId,
         }),
       )
       emitRunInit(props.events, props.init)
@@ -96,19 +98,4 @@ export function GameCanvas(props: {
       style={{ touchAction: 'none' }}
     />
   )
-}
-
-function getRunTuningFromSnapshot(snapshot: { weaponId: string; damage: number; fireRate: number; maxHp: number }) {
-  const bulletDamage = Math.max(1, Math.round(snapshot.damage))
-  const chargedDamage = Math.max(bulletDamage * 4, bulletDamage + 10)
-
-  const fireRate = Number.isFinite(snapshot.fireRate) ? snapshot.fireRate : 0
-  const fireCooldownMs = fireRate > 0 ? Math.max(60, Math.round(1000 / fireRate)) : undefined
-
-  return {
-    maxHp: snapshot.maxHp,
-    bulletDamage,
-    chargedDamage,
-    fireCooldownMs,
-  }
 }

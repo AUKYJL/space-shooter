@@ -5,7 +5,7 @@ import { AppService } from "./app.service";
 import { PrismaModule } from "./infra/prisma/prisma.module";
 import { LoadoutModule } from "./modules/loadout/loadout.module";
 import { JwtModule } from "./infra/jwt/jwt.module";
-import { JwtAuthGuard } from "./common/guards/jwt-auth.guard";
+import { JwtAuthGuard } from "./shared/guards/jwt-auth.guard";
 import { UsersModule } from "./modules/users/users.module";
 import { AuthModule } from "./modules/auth/auth.module";
 import { InventoryModule } from "./modules/inventory/inventory.module";

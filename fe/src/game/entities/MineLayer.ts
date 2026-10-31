@@ -3,6 +3,7 @@ import type { Enemy, EnemyState, Position } from './Enemy'
 
 // Fixed route sampled from the viewport at spawn; no Pixi or wall-clock timers.
 export class MineLayer implements Enemy {
+  get contactDamage() { return this.config.contactDamage }
   readonly type = 'mineLayer'
   readonly position: Position = { x: 0, y: 0 }
   state: EnemyState = 'inactive'

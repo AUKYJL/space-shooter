@@ -1,3 +1,4 @@
+import { GAMEPLAY_CONFIG, SPAWN_OPTIONS } from '@/test/runConfig'
 import { describe, expect, it } from 'vitest'
 
 import { Container } from 'pixi.js'
@@ -17,7 +18,7 @@ describe('SpawnSystem anti-camp', () => {
       return v
     }
 
-    const spawns = new SpawnSystem({
+    const spawns = new SpawnSystem(GAMEPLAY_CONFIG, { ...SPAWN_OPTIONS,
       container,
       getViewportSize: () => viewport,
       rng,

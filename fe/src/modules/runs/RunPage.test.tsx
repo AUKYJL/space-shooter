@@ -1,3 +1,4 @@
+import { RUN_CONFIG, GAMEPLAY_CONFIG, WEAPON_TUNING } from '@/test/runConfig'
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { StrictMode } from 'react'
@@ -23,8 +24,8 @@ vi.mock('@/shared/ui/drawer', () => ({
   DrawerDescription: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }))
 
-const config = { version: 1, asteroidPoints: { normal: 10, fast: 20, big: 30, armored: 50 }, stageBonus: 100 }
-const initial = { runId: 'one', seed: 1, scoringConfigVersion: 1, snapshot: { weaponId: 'basic_laser', damage: 1, fireRate: 2, maxHp: 5, scoringConfig: config } }
+const config = structuredClone(RUN_CONFIG)
+const initial = { runId: 'one', seed: 1, scoringConfigVersion: 7, snapshot: { weaponId: 'basic_laser', damage: 1, fireRate: 2, maxHp: 5, scoringConfig: config, gameplayConfig: GAMEPLAY_CONFIG, weaponTuning: WEAPON_TUNING } }
 const summary: RunSummary = { score: 110, stageReached: 1, durationMs: 20_000, endedBy: 'death', extractionCount: 0, multiplier: 1,
   collected: { coins: 10, iron: 2, gold: 0, crystal: 1 }, banked: { coins: 0, iron: 0, gold: 0, crystal: 0 },
   enemiesDestroyed: { sentryTurret: 0 },
@@ -50,6 +51,15 @@ describe('run page', () => {
     expect(getRunConfig).toHaveBeenCalledTimes(1)
     expect(startRun).toHaveBeenCalledTimes(1)
     expect(screen.queryByText('Starting run…')).not.toBeInTheDocument()
+  })
+  it('does not create Pixi or display local HUD defaults for an incomplete snapshot', async () => {
+    const invalid = JSON.parse(JSON.stringify(initial))
+    delete invalid.snapshot.gameplayConfig
+    vi.mocked(startRun).mockReset().mockResolvedValue(invalid)
+    mount()
+    await screen.findByText('Failed to start run: Invalid run configuration: gameplay')
+    expect(screen.queryByTestId('canvas')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('hud')).not.toBeInTheDocument()
   })
   it('shows a start error and allows retry in StrictMode', async () => {
     vi.mocked(startRun).mockReset().mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce(initial)

@@ -1,3 +1,4 @@
+import type { LootConfig } from '@/game/core/gameplayConfig'
 import { Container } from 'pixi.js'
 
 import type { LootDrop, LootType } from '@/game/entities/LootDrop'
@@ -21,11 +22,15 @@ export class LootSystem {
   private active: LootDrop[] = []
   private pool: LootDrop[] = []
 
-  private lootLifetimeMs = 8000
+  private lootLifetimeMs: number
 
   totals: LootTotals = { coins: 0, iron: 0, gold: 0, crystal: 0 }
 
-  constructor(options: { player: PlayerShip; container: Container; textures?: LootAssets }) {
+  private config: LootConfig
+
+  constructor(config: LootConfig, options: { player: PlayerShip; container: Container; textures?: LootAssets }) {
+    this.config = config
+    this.lootLifetimeMs = config.lifetimeMs
     this.player = options.player
     this.container = options.container
     this.textures = options.textures ?? null
@@ -53,15 +58,15 @@ export class LootSystem {
     const x = asteroid.view.position.x
     const y = asteroid.view.position.y
 
-    const drops = rollDrops(asteroid.type)
+    const drops = rollDrops(asteroid.type, this.config)
     for (const drop of drops) {
       this.spawnOne({ type: drop.type, amount: drop.amount, x, y })
     }
   }
 
   private spawnOne(options: { type: LootType; amount: number; x: number; y: number }) {
-    const drop = this.pool.pop() ?? new LootDropEntity()
-    const scatter = 12
+    const drop = this.pool.pop() ?? new LootDropEntity(this.config.radius)
+    const scatter = this.config.scatter
     drop.spawn({
       ...options,
       texture: this.textures ? this.textures[options.type] : undefined,
@@ -104,21 +109,15 @@ export class LootSystem {
   }
 }
 
-function rollDrops(type: AsteroidType): Array<{ type: LootType; amount: number }> {
+export function rollDrops(type: AsteroidType, config: LootConfig): Array<{ type: LootType; amount: number }> {
   // Simple MVP table: always coins, occasional crystal/iron/gold.
   const drops: Array<{ type: LootType; amount: number }> = []
 
-  const coinBase = type === 'big' ? 4 : type === 'armored' ? 5 : type === 'fast' ? 2 : 3
-  drops.push({ type: 'coins', amount: coinBase + Math.floor(Math.random() * 3) })
-
-  const ironChance = type === 'armored' ? 0.5 : type === 'big' ? 0.35 : 0.2
-  if (Math.random() < ironChance) drops.push({ type: 'iron', amount: 1 })
-
-  const crystalChance = type === 'armored' ? 0.25 : type === 'big' ? 0.15 : 0.08
-  if (Math.random() < crystalChance) drops.push({ type: 'crystal', amount: 1 })
-
-  const goldChance = type === 'armored' ? 0.18 : type === 'big' ? 0.12 : 0.06
-  if (Math.random() < goldChance) drops.push({ type: 'gold', amount: 1 })
+  const rule = config.drops[type]
+  drops.push({ type: 'coins', amount: rule.coins + Math.floor(Math.random() * config.coinBonusExclusive) })
+  if (Math.random() < rule.ironChance) drops.push({ type: 'iron', amount: config.resourceAmount })
+  if (Math.random() < rule.crystalChance) drops.push({ type: 'crystal', amount: config.resourceAmount })
+  if (Math.random() < rule.goldChance) drops.push({ type: 'gold', amount: config.resourceAmount })
 
   return drops
 }

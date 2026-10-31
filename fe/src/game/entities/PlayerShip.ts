@@ -1,6 +1,6 @@
+import type { PlayerConfig } from '@/game/core/gameplayConfig'
 import { AnimatedSprite, Container, Graphics, Sprite, Texture } from 'pixi.js'
 
-export const PLAYER_HITBOX_RADIUS = 12
 export const PLAYER_DEBUG_HITBOX = import.meta.env.DEV
 
 export type PlayerShipVisuals = {
@@ -12,8 +12,6 @@ const FLAME_ANIMATION_SPEED = 0.28
 const SHIP_TARGET_HEIGHT_PX = 44
 const FLAME_TARGET_HEIGHT_PX = 26
 const FLAME_OVERLAP_PX = 6
-const HITBOX_TRI_HALF_HEIGHT_PX = 20
-const HITBOX_TRI_HALF_WIDTH_PX = 30
 
 export class PlayerShip {
   readonly view: Container
@@ -23,17 +21,20 @@ export class PlayerShip {
   hp: number
   maxHp: number
 
-  pickupRadius = 30
+  readonly pickupRadius: number
+  private config: PlayerConfig
 
   private gfx?: Graphics
   private debugGfx?: Graphics
   private hitboxMode: 'circle' | 'triangle' = 'circle'
 
-  constructor(options?: { maxHp?: number; visuals?: PlayerShipVisuals }) {
+  constructor(options: { config: PlayerConfig; maxHp: number; visuals?: PlayerShipVisuals }) {
     this.view = new Container()
-    this.radius = 18
-    this.hitboxRadius = PLAYER_HITBOX_RADIUS
-    this.maxHp = Math.max(1, Math.round(options?.maxHp ?? 10))
+    this.config = options.config
+    this.radius = options.config.radius
+    this.hitboxRadius = options.config.hitboxRadius
+    this.pickupRadius = options.config.pickupRadius
+    this.maxHp = Math.max(1, Math.round(options.maxHp))
     this.hp = this.maxHp
 
     const visuals = options?.visuals
@@ -85,11 +86,11 @@ export class PlayerShip {
     }
 
     const ax = px
-    const ay = py - HITBOX_TRI_HALF_HEIGHT_PX
-    const bx = px + HITBOX_TRI_HALF_WIDTH_PX
-    const by = py + HITBOX_TRI_HALF_HEIGHT_PX
-    const cx2 = px - HITBOX_TRI_HALF_WIDTH_PX
-    const cy2 = py + HITBOX_TRI_HALF_HEIGHT_PX
+    const ay = py - this.config.triangleHalfHeight
+    const bx = px + this.config.triangleHalfWidth
+    const by = py + this.config.triangleHalfHeight
+    const cx2 = px - this.config.triangleHalfWidth
+    const cy2 = py + this.config.triangleHalfHeight
 
     if (pointInTriangle(cx, cy, ax, ay, bx, by, cx2, cy2)) return true
     if (distPointToSegmentSq(cx, cy, ax, ay, bx, by) <= cr * cr) return true
@@ -123,9 +124,9 @@ export class PlayerShip {
 
     this.debugGfx
       .poly([
-        { x: 0, y: -HITBOX_TRI_HALF_HEIGHT_PX },
-        { x: HITBOX_TRI_HALF_WIDTH_PX, y: HITBOX_TRI_HALF_HEIGHT_PX },
-        { x: -HITBOX_TRI_HALF_WIDTH_PX, y: HITBOX_TRI_HALF_HEIGHT_PX },
+        { x: 0, y: -this.config.triangleHalfHeight },
+        { x: this.config.triangleHalfWidth, y: this.config.triangleHalfHeight },
+        { x: -this.config.triangleHalfWidth, y: this.config.triangleHalfHeight },
       ])
       .stroke({ color: 0xff5555, width: 1, alpha: 0.55 })
   }

@@ -1,3 +1,4 @@
+import { GAMEPLAY_CONFIG, SCENE_TUNING, BULLET_OPTIONS } from '@/test/runConfig'
 import { ENEMY_CONFIG } from '@/test/enemyConfig'
 import { Container } from 'pixi.js'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -11,14 +12,14 @@ import type { PlayerShip } from '@/game/entities/PlayerShip'
 import type { ScoringConfig } from '@/modules/runs/api/runsApi'
 import { Bullet } from '@/game/entities/Bullet'
 
-const config = { version: 4, asteroidPoints: { normal: 10, fast: 20, big: 30, armored: 50 }, stageBonus: 100,
-  enemyPoints: { sentryTurret: 100 },
+const config = { version: 7, asteroidPoints: { normal: 10, fast: 20, big: 30, armored: 50 }, stageBonus: 100,
+  enemyPoints: { sentryTurret: 100, shieldDrone: 50, mineLayer: 150 },
   enemies: ENEMY_CONFIG }
-const droneConfig = { ...config, enemyPoints: { sentryTurret: 100, shieldDrone: 50 },
+const droneConfig = { ...config, enemyPoints: { sentryTurret: 100, shieldDrone: 50, mineLayer: 150 },
   enemies: { ...ENEMY_CONFIG, shieldDrone: { ...ENEMY_CONFIG.shieldDrone, spawnChance: 1 } } }
 function setup(selectedConfig: ScoringConfig = config, stage = 2) {
   const events = new EventBus<RunBridgeEventMap>()
-  const scene = new RunScene({ canvas: document.createElement('canvas'), events, scoringConfig: selectedConfig,
+  const scene = new RunScene({ gameplayConfig: GAMEPLAY_CONFIG, weaponId: 'basic_laser', tuning: SCENE_TUNING, canvas: document.createElement('canvas'), events, scoringConfig: selectedConfig,
     getViewportSize: () => ({ width: 400, height: 800 }) })
   scene.mount(new Container())
   const state = scene as unknown as { spawns: SpawnSystem; difficulty: DifficultySystem; player: PlayerShip; shooting: ShootingSystem }
@@ -47,14 +48,14 @@ describe('RunScene enemies', () => {
     drone.takeDamage(100)
     scene.update(100)
     expect(hud).toHaveBeenLastCalledWith(expect.objectContaining({ score: 250,
-      enemiesDestroyed: { sentryTurret: 0, shieldDrone: 1 } }))
+      enemiesDestroyed: { sentryTurret: 0, shieldDrone: 1, mineLayer: 0 } }))
     const result = vi.fn()
     events.on('run:finished', result)
     state.player.hp = 0
     scene.update(0)
     expect(result).toHaveBeenCalledOnce()
     expect(result).toHaveBeenCalledWith(expect.objectContaining({ score: 250,
-      enemiesDestroyed: { sentryTurret: 0, shieldDrone: 1 } }))
+      enemiesDestroyed: { sentryTurret: 0, shieldDrone: 1, mineLayer: 0 } }))
     expect(state.spawns.getEnemies()).toHaveLength(0)
     expect(drone.turret).toBeNull()
     expect(enemy.type === 'sentryTurret' && enemy.shieldDrone).toBeNull()
@@ -62,9 +63,7 @@ describe('RunScene enemies', () => {
   })
 
   it('does not reconstruct enemy defaults for legacy snapshots', () => {
-    const { scene, state } = setup({ ...droneConfig, version: 2 }, 3)
-    expect(state.spawns.getEnemies()).toHaveLength(0)
-    scene.destroy()
+    expect(() => setup({ ...droneConfig, version: 2 }, 3)).toThrow('Unsupported run configuration')
   })
 
   it('counts a lethal hit exactly once before the death result, with no loot or charge', () => {
@@ -72,12 +71,12 @@ describe('RunScene enemies', () => {
     const results: RunSummary[] = []
     events.on('run:finished', (summary) => results.push(summary))
     const bullet = new Bullet()
-    bullet.spawn({ x: enemy.position.x, y: enemy.position.y, directionX: 0, directionY: 0, speed: 0, damage: 100 })
+    bullet.spawn({ ...BULLET_OPTIONS, x: enemy.position.x, y: enemy.position.y, directionX: 0, directionY: 0, speed: 0, damage: 100 })
     vi.spyOn(state.shooting, 'getBullets').mockReturnValue([bullet])
     // A hostile projectile provides the lethal player damage in the same collision pass.
     state.player.hp = 1
     const hostile = new Bullet()
-    hostile.spawn({ x: state.player.view.position.x, y: state.player.view.position.y,
+    hostile.spawn({ ...BULLET_OPTIONS, x: state.player.view.position.x, y: state.player.view.position.y,
       directionX: 0, directionY: 0, speed: 0 })
     state.spawns.getEnemyBullets().push(hostile)
     scene.update(0)
@@ -114,7 +113,7 @@ describe('RunScene enemies', () => {
     const result = vi.fn()
     next.events.on('run:finished', result)
     next.scene.update(0)
-    expect(result).toHaveBeenCalledWith(expect.objectContaining({ enemiesDestroyed: { sentryTurret: 0, shieldDrone: 0 }, score: 100 }))
+    expect(result).toHaveBeenCalledWith(expect.objectContaining({ enemiesDestroyed: { sentryTurret: 0, shieldDrone: 0, mineLayer: 0 }, score: 100 }))
     next.scene.destroy()
   })
 })

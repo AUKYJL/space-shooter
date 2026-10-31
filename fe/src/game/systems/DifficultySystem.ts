@@ -1,7 +1,14 @@
+import type { DifficultyConfig } from '@/game/core/gameplayConfig'
 import type { AsteroidType } from '@/game/entities/Asteroid'
 import type { SpawnTuning } from '@/game/systems/SpawnSystem'
 
 export class DifficultySystem {
+  private config: DifficultyConfig
+
+  constructor(config: DifficultyConfig) {
+    this.config = config
+  }
+
   elapsedMs = 0
   private stage = 1
 
@@ -18,32 +25,32 @@ export class DifficultySystem {
   }
 
   getStageMultiplier() {
-    return 1 + (this.stage - 1) * 0.15
+    return 1 + (this.stage - 1) * this.config.stageMultiplierStep
   }
 
   getSpawnTuning(): SpawnTuning {
     // MVP curve: ramps over ~4 minutes.
-    const t = clamp01(this.elapsedMs / (4 * 60 * 1000))
+    const t = clamp01(this.elapsedMs / this.config.rampMs)
     const stageMul = this.getStageMultiplier()
-    const stageT = clamp01((this.stage - 1) / 6)
+    const stageT = clamp01((this.stage - 1) / this.config.compositionStageSpan)
 
-    const spawnEveryMs = lerp(420, 230, t) / stageMul
-    const maxActive = lerp(26, 44, t) * Math.min(1.35, stageMul)
+    const spawnEveryMs = lerp(this.config.spawnEveryMs.start, this.config.spawnEveryMs.end, t) / stageMul
+    const maxActive = lerp(this.config.maxActive.start, this.config.maxActive.end, t) * Math.min(this.config.maxActiveStageMultiplier, stageMul)
 
     // Shift composition towards tougher types over time.
     const base: Record<AsteroidType, number> = {
-      normal: lerp(0.7, 0.45, t),
-      fast: lerp(0.16, 0.24, t),
-      big: lerp(0.1, 0.18, t),
-      armored: lerp(0.04, 0.13, t),
+      normal: lerp(this.config.composition.normal.start, this.config.composition.normal.end, t),
+      fast: lerp(this.config.composition.fast.start, this.config.composition.fast.end, t),
+      big: lerp(this.config.composition.big.start, this.config.composition.big.end, t),
+      armored: lerp(this.config.composition.armored.start, this.config.composition.armored.end, t),
     }
 
     // Stage further biases towards tougher asteroids (big/armored).
     const weights: Record<AsteroidType, number> = {
-      normal: base.normal * lerp(1, 0.72, stageT),
-      fast: base.fast * lerp(1, 1.05, stageT),
-      big: base.big * lerp(1, 1.45, stageT),
-      armored: base.armored * lerp(1, 1.8, stageT),
+      normal: base.normal * lerp(1, this.config.composition.normal.stageEnd, stageT),
+      fast: base.fast * lerp(1, this.config.composition.fast.stageEnd, stageT),
+      big: base.big * lerp(1, this.config.composition.big.stageEnd, stageT),
+      armored: base.armored * lerp(1, this.config.composition.armored.stageEnd, stageT),
     }
 
     return {

@@ -1,0 +1,393 @@
+{
+  "version": 7,
+  "asteroidPoints": {
+    "normal": 10,
+    "fast": 20,
+    "big": 30,
+    "armored": 50
+  },
+  "stageBonus": 100,
+  "enemyPoints": {
+    "sentryTurret": 100,
+    "shieldDrone": 50,
+    "mineLayer": 150
+  },
+  "enemies": {
+    "sentryTurret": {
+      "contactDamage": 1,
+      "minStage": 2,
+      "spawnChance": 1,
+      "firstSpawnDelayMs": 2000,
+      "spawnEveryMs": 15000,
+      "maxActive": 1,
+      "hp": 6,
+      "radius": 32,
+      "width": 64,
+      "height": 32,
+      "cannonRadius": 10,
+      "barrelLength": 22,
+      "barrelWidth": 6,
+      "edgeMargin": 40,
+      "stopHeightRatio": 0.18,
+      "enteringMs": 1200,
+      "activeMs": 30000,
+      "leavingMs": 900,
+      "fireEveryMs": 1200,
+      "activeColor": 16737877,
+      "enteringColor": 16762967,
+      "leavingColor": 8096427,
+      "cannonColor": 14544639,
+      "outlineColor": 15658751,
+      "outlineWidth": 2,
+      "hpBar": {
+        "offset": 9,
+        "height": 4,
+        "backgroundColor": 2236979,
+        "color": 6750105
+      },
+      "bullet": {
+        "speed": 220,
+        "radius": 4,
+        "damage": 1,
+        "lifetimeMs": 4000,
+        "maxActive": 16,
+        "color": 16737877,
+        "pierce": 0
+      }
+    },
+    "shieldDrone": {
+      "contactDamage": 1,
+      "minStage": 2,
+      "spawnChance": 1,
+      "maxActive": 1,
+      "hp": 4,
+      "radius": 14,
+      "offset": 72,
+      "shieldRadius": 120,
+      "damageReduction": 0.2,
+      "enteringMs": 1200,
+      "followSpeed": 180,
+      "leavingMs": 900,
+      "color": 6737151,
+      "outlineColor": 14544639,
+      "outlineWidth": 2,
+      "shieldAlpha": 0.25,
+      "shieldWidth": 3
+    },
+    "mineLayer": {
+      "minStage": 1,
+      "spawnChance": 1,
+      "firstSpawnDelayMs": 2000,
+      "spawnEveryMs": 18000,
+      "maxActive": 1,
+      "hp": 8,
+      "radius": 20,
+      "contactDamage": 1,
+      "width": 40,
+      "height": 28,
+      "minHeightRatio": 0.2,
+      "maxHeightRatio": 0.8,
+      "entryRatio": 0.15,
+      "exitRatio": 0.85,
+      "enteringMs": 1000,
+      "activeMs": 4000,
+      "leavingMs": 1000,
+      "mineCount": 4,
+      "firstDropDelayMs": 500,
+      "dropEveryMs": 1000,
+      "color": 16755268,
+      "outlineColor": 15658751,
+      "outlineWidth": 2,
+      "mine": {
+        "hp": 1,
+        "radius": 10,
+        "activationMs": 1200,
+        "fuseMs": 5000,
+        "damage": 1,
+        "blastRadius": 64,
+        "explosionMs": 300,
+        "blinkEveryMs": 200,
+        "maxActive": 16,
+        "color": 16724787,
+        "dormantAlpha": 0.4,
+        "blinkAlpha": 0.3,
+        "explosionColor": 16737877,
+        "explosionAlpha": 0.7,
+        "outlineWidth": 2
+      }
+    }
+  },
+  "gameplay": {
+    "player": {
+      "maxHp": 1000,
+      "radius": 18,
+      "hitboxRadius": 12,
+      "pickupRadius": 30,
+      "triangleHalfHeight": 20,
+      "triangleHalfWidth": 30,
+      "moveSpeedPxPerSec": 320,
+      "invulnerabilityMs": 450,
+      "startHeightRatio": 0.7
+    },
+    "weapons": {
+      "purchaseCosts": {
+        "basic_laser": null,
+        "spread_shot": 2500,
+        "shotgun": 4000,
+        "plasma": 6000
+      },
+      "minFireCooldownMs": 60,
+      "chargedDamageMultiplier": 4,
+      "chargedDamageBonus": 10,
+      "primary": {
+        "speed": 920,
+        "lifetimeMs": 700,
+        "radius": 4
+      },
+      "charged": {
+        "speed": 760,
+        "lifetimeMs": 900,
+        "radius": 10,
+        "cooldownMs": 900,
+        "muzzleOffset": 10,
+        "pierce": 0
+      },
+      "charge": {
+        "activationThreshold": 0.02,
+        "gains": {
+          "normal": 0.1,
+          "fast": 0.08,
+          "big": 0.16,
+          "armored": 0.22
+        }
+      },
+      "variants": {
+        "basic_laser": {
+          "cooldownMultiplier": 1,
+          "minCooldownMs": 0,
+          "damageMultiplier": 1,
+          "muzzleOffset": 6,
+          "pierce": 0,
+          "directions": [
+            0
+          ],
+          "pellets": 1,
+          "spread": 0,
+          "jitterMin": 1,
+          "jitterRange": 0,
+          "falloff": null
+        },
+        "spread_shot": {
+          "cooldownMultiplier": 1,
+          "minCooldownMs": 0,
+          "damageMultiplier": 0.5,
+          "muzzleOffset": 6,
+          "pierce": 0,
+          "directions": [
+            -0.22,
+            0,
+            0.22
+          ],
+          "pellets": 1,
+          "spread": 0,
+          "jitterMin": 1,
+          "jitterRange": 0,
+          "falloff": null
+        },
+        "shotgun": {
+          "cooldownMultiplier": 1.65,
+          "minCooldownMs": 90,
+          "damageMultiplier": 1,
+          "muzzleOffset": 6,
+          "pierce": 0,
+          "directions": [
+            0
+          ],
+          "pellets": 7,
+          "spread": 0.46,
+          "jitterMin": 0.85,
+          "jitterRange": 0.3,
+          "falloff": {
+            "startPx": 90,
+            "endPx": 460
+          }
+        },
+        "plasma": {
+          "cooldownMultiplier": 1.9,
+          "minCooldownMs": 120,
+          "damageMultiplier": 2,
+          "muzzleOffset": 8,
+          "pierce": 3,
+          "directions": [
+            0
+          ],
+          "pellets": 1,
+          "spread": 0,
+          "jitterMin": 1,
+          "jitterRange": 0,
+          "falloff": null
+        }
+      }
+    },
+    "asteroids": {
+      "types": {
+        "normal": {
+          "radius": 18,
+          "hp": 3,
+          "speed": 60
+        },
+        "big": {
+          "radius": 30,
+          "hp": 8,
+          "speed": 50
+        },
+        "fast": {
+          "radius": 14,
+          "hp": 2,
+          "speed": 120
+        },
+        "armored": {
+          "radius": 22,
+          "hp": 10,
+          "speed": 70
+        }
+      },
+      "contactDamage": 1
+    },
+    "difficulty": {
+      "rampMs": 240000,
+      "stageMultiplierStep": 0.15,
+      "compositionStageSpan": 6,
+      "spawnEveryMs": {
+        "start": 420,
+        "end": 230
+      },
+      "maxActive": {
+        "start": 26,
+        "end": 44
+      },
+      "maxActiveStageMultiplier": 1.35,
+      "composition": {
+        "normal": {
+          "start": 0.7,
+          "end": 0.45,
+          "stageEnd": 0.72
+        },
+        "fast": {
+          "start": 0.16,
+          "end": 0.24,
+          "stageEnd": 1.05
+        },
+        "big": {
+          "start": 0.1,
+          "end": 0.18,
+          "stageEnd": 1.45
+        },
+        "armored": {
+          "start": 0.04,
+          "end": 0.13,
+          "stageEnd": 1.8
+        }
+      }
+    },
+    "spawn": {
+      "minSpawnEveryMs": 60,
+      "edgeWeights": {
+        "top": 0.46,
+        "right": 0.22,
+        "bottom": 0.12,
+        "left": 0.2
+      },
+      "speedMultiplier": {
+        "min": 0.85,
+        "range": 0.3
+      },
+      "spawnPadding": 12,
+      "targeting": {
+        "stageSpan": 1,
+        "maxChance": 0.22,
+        "baseChance": 0.08,
+        "stageChance": 0.12,
+        "playerPadding": 24,
+        "areaStart": 0.2,
+        "areaRange": 0.6
+      },
+      "mineLayerLeftChance": 0.5
+    },
+    "extraction": {
+      "firstSpawnMs": 12000,
+      "spawnEveryMs": 22000,
+      "ttlMs": 10000,
+      "requiredMs": 3000,
+      "radius": 26,
+      "spawnPadding": 40,
+      "minDurationMs": 1000,
+      "maxDurationMs": 10800000,
+      "clockToleranceMs": 2000
+    },
+    "loot": {
+      "lifetimeMs": 8000,
+      "radius": 7,
+      "scatter": 12,
+      "coinBonusExclusive": 3,
+      "resourceAmount": 1,
+      "drops": {
+        "normal": {
+          "coins": 3,
+          "ironChance": 0.2,
+          "crystalChance": 0.08,
+          "goldChance": 0.06
+        },
+        "fast": {
+          "coins": 2,
+          "ironChance": 0.2,
+          "crystalChance": 0.08,
+          "goldChance": 0.06
+        },
+        "big": {
+          "coins": 4,
+          "ironChance": 0.35,
+          "crystalChance": 0.15,
+          "goldChance": 0.12
+        },
+        "armored": {
+          "coins": 5,
+          "ironChance": 0.5,
+          "crystalChance": 0.25,
+          "goldChance": 0.18
+        }
+      },
+      "rewardCaps": {
+        "coins": 10000,
+        "ore": 1000,
+        "crystal": 1000
+      }
+    },
+    "zones": {
+      "danger": {
+        "radius": 54,
+        "ttlMs": 10000,
+        "tickMs": 1000,
+        "amount": 1,
+        "firstSpawnMs": 4500,
+        "spawnEveryMs": 4500,
+        "spawnJitterMs": 3500,
+        "maxActive": 2,
+        "spawnChance": 0.35,
+        "spawnPadding": 90
+      },
+      "heal": {
+        "radius": 46,
+        "ttlMs": 5000,
+        "tickMs": 1000,
+        "amount": 1,
+        "firstSpawnMs": 7200,
+        "spawnEveryMs": 7200,
+        "spawnJitterMs": 4200,
+        "maxActive": 1,
+        "spawnChance": 0.22,
+        "spawnPadding": 90
+      }
+    }
+  }
+}

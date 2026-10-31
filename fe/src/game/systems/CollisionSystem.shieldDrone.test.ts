@@ -1,3 +1,4 @@
+import { GAMEPLAY_CONFIG, BULLET_OPTIONS } from '@/test/runConfig'
 import { ENEMY_CONFIG } from '@/test/enemyConfig'
 import { Container } from 'pixi.js'
 import { describe, expect, it, vi } from 'vitest'
@@ -9,9 +10,9 @@ import { SentryTurretView } from '@/game/views/SentryTurretView'
 import type { ShootingSystem } from './ShootingSystem'
 
 function setup() {
-  const player = new PlayerShip({ maxHp: 5 })
+  const player = new PlayerShip({ config: GAMEPLAY_CONFIG.player, maxHp: 5 })
   player.setPosition(200, 700)
-  const spawns = new SpawnSystem({ container: new Container(), getViewportSize: () => ({ width: 400, height: 800 }),
+  const spawns = new SpawnSystem(GAMEPLAY_CONFIG, { getPlayerPosition: () => ({ x: 200, y: 700 }), container: new Container(), getViewportSize: () => ({ width: 400, height: 800 }),
     rng: () => 0.25, enemies: ENEMY_CONFIG })
   vi.spyOn(spawns, 'getAsteroids').mockReturnValue([])
   spawns.setEnemyStage(3, 1)
@@ -22,10 +23,10 @@ function setup() {
   const drone = spawns.getEnemies().find((enemy) => enemy.type === 'shieldDrone')!
   const bullets: Bullet[] = []
   const shooting = { getBullets: () => bullets, despawnBullet: (bullet: Bullet) => bullet.despawn() } as unknown as ShootingSystem
-  const collisions = new CollisionSystem({ player, shooting, spawns })
+  const collisions = new CollisionSystem(GAMEPLAY_CONFIG.player.invulnerabilityMs, { player, shooting, spawns })
   function shoot(target: { position: { x: number; y: number } }, damage: number, pierceLeft = 0) {
     const bullet = new Bullet()
-    bullet.spawn({ ...target.position, directionX: 0, directionY: 0, speed: 0, damage, pierceLeft })
+    bullet.spawn({ ...BULLET_OPTIONS, ...target.position, directionX: 0, directionY: 0, speed: 0, damage, pierceLeft })
     bullets.push(bullet)
     return bullet
   }
