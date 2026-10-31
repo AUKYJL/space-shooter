@@ -1,24 +1,14 @@
 import { describe, expect, it, vi } from 'vitest'
-
-vi.mock('pixi.js', () => {
-  return {
-    Assets: { load: vi.fn(async () => ({})) },
-  }
-})
-
-import { Assets } from 'pixi.js'
-import { loadAsteroidAssets } from '@/game/assets/loadAsteroidAssets'
-import { ASTEROID_ASSET_URLS } from '@/game/assets/asteroidAssetUrls'
+vi.mock('./assets', () => ({ ensureBundle: vi.fn(async () => {}) }))
+vi.mock('pixi.js', () => ({ Assets: { get: vi.fn((url: string) => url) } }))
+import { ensureBundle } from './assets'
+import { loadAsteroidAssets } from './loadAsteroidAssets'
+import { ASTEROID_ASSET_URLS } from './asteroidAssetUrls'
 
 describe('loadAsteroidAssets', () => {
-  it('loads all asteroid textures', async () => {
-    await loadAsteroidAssets()
-    expect(Assets.load).toHaveBeenCalledWith([
-      ASTEROID_ASSET_URLS.normal,
-      ASTEROID_ASSET_URLS.big,
-      ASTEROID_ASSET_URLS.fast,
-      ASTEROID_ASSET_URLS.armored,
-    ])
+  it('maps the shared bundle cache to existing texture keys', async () => {
+    const assets = await loadAsteroidAssets()
+    expect(ensureBundle).toHaveBeenCalledWith('asteroids')
+    expect(assets).toEqual(ASTEROID_ASSET_URLS)
   })
 })
-

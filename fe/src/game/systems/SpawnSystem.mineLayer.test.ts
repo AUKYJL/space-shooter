@@ -8,12 +8,13 @@ import { ENEMY_CONFIG, MINE_LAYER_CONFIG as cfg } from '@/test/enemyConfig'
 function setup(overrides: Partial<typeof cfg> = {}, rng = () => 0.25) {
   const container = new Container()
   const onEnemyDestroyed = vi.fn()
+  const onSfx = vi.fn()
   const enemies = { ...ENEMY_CONFIG, sentryTurret: { ...ENEMY_CONFIG.sentryTurret, spawnChance: 0 },
     mineLayer: { ...cfg, ...overrides } }
   const system = new SpawnSystem(GAMEPLAY_CONFIG, { getPlayerPosition: () => ({ x: 200, y: 700 }), container, getViewportSize: () => ({ width: 400, height: 800 }),
-    rng, enemies, onEnemyDestroyed })
+    rng, enemies, onEnemyDestroyed, onSfx })
   system.setTuning({ ...new DifficultySystem(GAMEPLAY_CONFIG.difficulty).getSpawnTuning(), spawnEveryMs: 1000000 })
-  return { system, container, onEnemyDestroyed, enemies }
+  return { system, container, onEnemyDestroyed, enemies, onSfx }
 }
 function open(system: SpawnSystem) {
   system.setEnemyStage(4, 1.45)
@@ -23,6 +24,19 @@ function open(system: SpawnSystem) {
 }
 
 describe('SpawnSystem MineLayer', () => {
+  it('signals only actual mine drops and dormant-to-armed transitions', () => {
+    const { system, onSfx } = setup()
+    open(system)
+    system.update(1000)
+    system.update(500)
+    expect(system.getMines()).toHaveLength(1)
+    expect(onSfx.mock.calls.filter(([id]) => id === 'mine_drop')).toHaveLength(1)
+    system.update(cfg.mine.activationMs)
+    system.update(0)
+    expect(onSfx.mock.calls.filter(([id]) => id === 'mine_armed')).toHaveLength(1)
+    system.destroy()
+  })
+
   it('uses the injected RNG to choose a fresh height on each ship spawn', () => {
     let roll = 0.1
     const { system } = setup({}, () => roll)

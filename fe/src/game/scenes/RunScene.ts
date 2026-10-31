@@ -1,3 +1,4 @@
+import { audioManager } from '@/game/audio/AudioManager'
 import type { GameplayConfig } from '@/game/core/gameplayConfig'
 import type { WeaponId } from '@/shared/lib/weapons'
 import { Container, type Texture } from 'pixi.js'
@@ -75,6 +76,7 @@ export class RunScene implements Scene {
     if (options.scoringConfig.version !== 7 || !options.scoringConfig.enemies?.mineLayer) throw new Error('Unsupported run configuration')
     this.gameplayConfig = structuredClone(options.gameplayConfig)
     const config = this.gameplayConfig
+    const onSfx = audioManager.playSfx.bind(audioManager)
     this.getViewportSize = options.getViewportSize
     this.scoringConfig = structuredClone(options.scoringConfig)
     this.enemiesDestroyed.mineLayer = 0
@@ -88,6 +90,7 @@ export class RunScene implements Scene {
       events: this.events,
     })
     this.shooting = new ShootingSystem(config.weapons, {
+      onSfx,
       player: this.player,
       input: this.input,
       getViewportSize: options.getViewportSize,
@@ -98,6 +101,7 @@ export class RunScene implements Scene {
       weaponId: options.weaponId,
     })
     this.spawns = new SpawnSystem(config, {
+      onSfx,
       enemies: this.scoringConfig.enemies!,
       onEnemyDestroyed: (enemy) => { this.enemiesDestroyed[enemy.type] = (this.enemiesDestroyed[enemy.type] ?? 0) + 1 },
       container: this.asteroidsContainer,
@@ -113,16 +117,18 @@ export class RunScene implements Scene {
     })
     this.camera = new CameraSystem()
     this.collisions = new CollisionSystem(config.player.invulnerabilityMs, {
+      onSfx,
       player: this.player,
       shooting: this.shooting,
       spawns: this.spawns,
       onPlayerDamaged: () => this.camera.shake({ durationMs: 150, amplitudePx: 6 }),
     })
-    this.loot = new LootSystem(config.loot, { player: this.player, container: this.lootContainer, textures: options.lootAssets })
-    this.charge = new ChargeSystem(config.weapons.charge, { events: this.events, shooting: this.shooting })
+    this.loot = new LootSystem(config.loot, { onSfx, player: this.player, container: this.lootContainer, textures: options.lootAssets })
+    this.charge = new ChargeSystem(config.weapons.charge, { onSfx, events: this.events, shooting: this.shooting })
     this.difficulty = new DifficultySystem(config.difficulty)
     this.multiplier = this.difficulty.getStageMultiplier()
     this.extraction = new ExtractionSystem(config.extraction, {
+      onSfx,
       container: this.extractionContainer,
       player: this.player,
       getViewportSize: options.getViewportSize,
@@ -170,6 +176,7 @@ export class RunScene implements Scene {
     this.extraction.update(dtMs)
     if (this.extraction.consumeBaseExpired()) {
       this.difficulty.advanceStage()
+      audioManager.playSfx('stage_up')
       this.multiplier = this.difficulty.getStageMultiplier()
     }
     if (this.extraction.consumeExtracted()) {

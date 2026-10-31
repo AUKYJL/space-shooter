@@ -1,3 +1,4 @@
+import { audioManager } from '@/game/audio/AudioManager'
 import { Link } from '@tanstack/react-router'
 import { useEffect, useMemo } from 'react'
 
@@ -91,6 +92,7 @@ export function WeaponSelectPage() {
                 type="button"
                 disabled={patchWeapon.isPending}
                 onClick={() => {
+                  audioManager.playSfx('ui_click')
                   setSelectedWeaponId(w.id)
                   patchWeapon.mutate({ weaponId: w.id })
                 }}

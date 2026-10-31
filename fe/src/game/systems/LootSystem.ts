@@ -1,3 +1,4 @@
+import type { SfxEmitter } from '@/game/audio/audioCatalog'
 import type { LootConfig } from '@/game/core/gameplayConfig'
 import { Container } from 'pixi.js'
 
@@ -15,6 +16,7 @@ export type LootTotals = {
 }
 
 export class LootSystem {
+  private onSfx?: SfxEmitter
   private player: PlayerShip
   private container: Container
   private textures: Partial<Record<LootType, LootAssets[keyof LootAssets]>> | null
@@ -28,7 +30,8 @@ export class LootSystem {
 
   private config: LootConfig
 
-  constructor(config: LootConfig, options: { player: PlayerShip; container: Container; textures?: LootAssets }) {
+  constructor(config: LootConfig, options: { onSfx?: SfxEmitter; player: PlayerShip; container: Container; textures?: LootAssets }) {
+    this.onSfx = options.onSfx
     this.config = config
     this.lootLifetimeMs = config.lifetimeMs
     this.player = options.player
@@ -87,6 +90,7 @@ export class LootSystem {
   }
 
   private collect(drop: LootDrop) {
+    this.onSfx?.(drop.type === 'gold' || drop.type === 'crystal' ? 'rare_pickup' : 'loot_pickup')
     if (drop.type === 'coins') this.totals.coins += drop.amount
     else if (drop.type === 'iron') this.totals.iron += drop.amount
     else if (drop.type === 'gold') this.totals.gold += drop.amount

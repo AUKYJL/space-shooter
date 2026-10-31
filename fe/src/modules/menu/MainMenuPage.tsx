@@ -1,3 +1,4 @@
+import { AudioSettings } from '@/shared/ui/AudioSettings'
 import { Link } from '@tanstack/react-router'
 import { Button } from '@/shared/ui/button'
 import { useAppStore } from '@/shared/store/appStore'
@@ -57,7 +58,9 @@ export function MainMenuPage() {
         </div>
       </div>
 
-      <Button asChild size="xl" className="h-14 text-base font-semibold">
+      <AudioSettings />
+
+      <Button sfx="ui_start" asChild size="xl" className="h-14 text-base font-semibold">
         <Link to="/run">Start Run</Link>
       </Button>
 

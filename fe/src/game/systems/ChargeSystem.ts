@@ -1,3 +1,4 @@
+import type { SfxEmitter } from '@/game/audio/audioCatalog'
 import type { WeaponsConfig } from '@/game/core/gameplayConfig'
 import type { EventBus, Unsubscribe } from '@/game/core/EventBus'
 import type { AsteroidType } from '@/game/entities/Asteroid'
@@ -6,6 +7,7 @@ import type { ShootingSystem } from '@/game/systems/ShootingSystem'
 import { haptics } from '@/shared/lib/haptics'
 
 export class ChargeSystem {
+  private onSfx?: SfxEmitter
   charge = 0
 
   private events: EventBus<RunBridgeEventMap>
@@ -14,7 +16,8 @@ export class ChargeSystem {
 
   private config: WeaponsConfig['charge']
 
-  constructor(config: WeaponsConfig['charge'], options: { events: EventBus<RunBridgeEventMap>; shooting: ShootingSystem }) {
+  constructor(config: WeaponsConfig['charge'], options: { onSfx?: SfxEmitter; events: EventBus<RunBridgeEventMap>; shooting: ShootingSystem }) {
+    this.onSfx = options.onSfx
     this.config = config
     this.events = options.events
     this.shooting = options.shooting
@@ -30,8 +33,11 @@ export class ChargeSystem {
   }
 
   onAsteroidDestroyed(type: AsteroidType) {
+    const previous = this.charge
     const add = this.config.gains[type]
     this.charge = Math.min(1, this.charge + add)
+    if (previous <= this.config.activationThreshold && this.charge > this.config.activationThreshold) this.onSfx?.('charge_ready')
+    else if (previous === 0 && this.charge > 0) this.onSfx?.('charge_up')
   }
 
   destroy() {

@@ -43,6 +43,7 @@ export function RunHud(props: {
               <Button
                 size="icon-xs"
                 variant="outline"
+                sfx="ui_pause"
                 aria-label="Pause"
                 disabled={props.pauseDisabled}
                 className="pointer-events-auto"

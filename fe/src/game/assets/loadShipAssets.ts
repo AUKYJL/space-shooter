@@ -1,4 +1,5 @@
-import { Assets, Texture } from 'pixi.js'
+import { Assets, type Texture } from 'pixi.js'
+import { ensureBundle } from './assets'
 import { SHIP_ASSET_URLS } from '@/game/assets/shipAssetUrls'
 
 export type ShipAssets = {
@@ -7,12 +8,11 @@ export type ShipAssets = {
 }
 
 export async function loadShipAssets(): Promise<ShipAssets> {
-  const urls = [SHIP_ASSET_URLS.ship, ...SHIP_ASSET_URLS.flameFrames]
-  const loaded = (await Assets.load(urls)) as Record<string, Texture>
+  await ensureBundle('ship')
 
   return {
-    shipTexture: loaded[SHIP_ASSET_URLS.ship],
-    flameTextures: SHIP_ASSET_URLS.flameFrames.map((u) => loaded[u]),
+    shipTexture: Assets.get<Texture>(SHIP_ASSET_URLS.ship),
+    flameTextures: SHIP_ASSET_URLS.flameFrames.map((u) => Assets.get<Texture>(u)),
   }
 }
 

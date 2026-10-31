@@ -1,4 +1,5 @@
-import { Assets, Texture } from 'pixi.js'
+import { Assets, type Texture } from 'pixi.js'
+import { ensureBundle } from './assets'
 
 import { LOOT_ASSET_URLS } from '@/game/assets/lootAssetUrls'
 
@@ -8,12 +9,11 @@ export type LootAssets = {
 }
 
 export async function loadLootAssets(): Promise<LootAssets> {
-  const urls = [LOOT_ASSET_URLS.coins, LOOT_ASSET_URLS.crystal]
-  const loaded = (await Assets.load(urls)) as Record<string, Texture>
+  await ensureBundle('loot')
 
   return {
-    coins: loaded[LOOT_ASSET_URLS.coins],
-    crystal: loaded[LOOT_ASSET_URLS.crystal],
+    coins: Assets.get<Texture>(LOOT_ASSET_URLS.coins),
+    crystal: Assets.get<Texture>(LOOT_ASSET_URLS.crystal),
   }
 }
 

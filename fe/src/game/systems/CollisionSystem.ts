@@ -1,3 +1,7 @@
+import { Asteroid } from '@/game/entities/Asteroid'
+import { SentryTurret } from '@/game/entities/SentryTurret'
+import { ShieldDrone } from '@/game/entities/ShieldDrone'
+import type { SfxEmitter } from '@/game/audio/audioCatalog'
 import type { Bullet } from '@/game/entities/Bullet'
 import { MineLayer } from '@/game/entities/MineLayer'
 import type { DamageableTarget } from '@/game/entities/Enemy'
@@ -9,6 +13,7 @@ import type { SpawnSystem } from '@/game/systems/SpawnSystem'
 import { haptics } from '@/shared/lib/haptics'
 
 export class CollisionSystem {
+  private onSfx?: SfxEmitter
   private player: PlayerShip
   private shooting: ShootingSystem
   private spawns: SpawnSystem
@@ -17,7 +22,8 @@ export class CollisionSystem {
   private invulnRemainingMs = 0
   private invulnAfterHitMs: number
 
-  constructor(invulnerabilityMs: number, options: { player: PlayerShip; shooting: ShootingSystem; spawns: SpawnSystem; onPlayerDamaged?: () => void }) {
+  constructor(invulnerabilityMs: number, options: { onSfx?: SfxEmitter; player: PlayerShip; shooting: ShootingSystem; spawns: SpawnSystem; onPlayerDamaged?: () => void }) {
+    this.onSfx = options.onSfx
     this.invulnAfterHitMs = invulnerabilityMs
     this.player = options.player
     this.shooting = options.shooting
@@ -57,7 +63,15 @@ export class CollisionSystem {
         if (!circlesOverlap(bullet.view.position.x, bullet.view.position.y, bullet.radius, target.position.x, target.position.y, target.radius))
           continue
 
+        const shieldHit = target instanceof SentryTurret && target.isShielded
+        const protecting = target instanceof ShieldDrone && target.turret && target.isProtecting(target.turret)
+        const hp = target.hp
         target.takeDamage(bullet.getDamageAtImpact())
+        if (target.hp < hp) {
+          if (shieldHit) this.onSfx?.('shield_hit')
+          if (protecting && target.isDead()) this.onSfx?.('shield_break')
+          if (target instanceof Asteroid && !target.isDead()) this.onSfx?.('asteroid_hit')
+        }
         bullet.registerTargetHit(target)
 
         if (bullet.pierceLeft > 0) {
@@ -91,9 +105,11 @@ export class CollisionSystem {
 
   private damagePlayer(damage: number) {
     if (this.invulnRemainingMs > 0 || this.player.hp <= 0) return
+    const previousHp = this.player.hp
     this.player.hp = Math.max(0, this.player.hp - damage)
     haptics.damage()
     this.onPlayerDamaged?.()
+    if (this.player.hp < previousHp) this.onSfx?.('player_hit')
     this.invulnRemainingMs = this.invulnAfterHitMs
   }
 
@@ -102,8 +118,9 @@ export class CollisionSystem {
       if (mine.state !== 'armed') continue
       const contact = this.player.intersectsCircle(mine.position.x, mine.position.y, mine.radius)
       if (!mine.fuseExpired && !contact) continue
-      if (mine.detonate() && this.player.intersectsCircle(mine.position.x, mine.position.y, mine.config.blastRadius)) {
-        this.damagePlayer(mine.config.damage)
+      if (mine.detonate()) {
+        this.onSfx?.('mine_explosion')
+        if (this.player.intersectsCircle(mine.position.x, mine.position.y, mine.config.blastRadius)) this.damagePlayer(mine.config.damage)
       }
     }
   }
@@ -134,9 +151,11 @@ export class CollisionSystem {
         zone.tickAccumMs -= zone.damageTickMs
         if (this.invulnRemainingMs > 0) continue
         if (this.player.hp <= 0) return
+        const previousHp = this.player.hp
         this.player.hp = Math.max(0, this.player.hp - zone.amount)
         haptics.damage()
         this.onPlayerDamaged?.()
+        if (this.player.hp < previousHp) this.onSfx?.('hazard_damage')
         this.invulnRemainingMs = this.invulnAfterHitMs
       }
     }
@@ -159,7 +178,9 @@ export class CollisionSystem {
         zone.tickAccumMs -= zone.healTickMs
         if (this.player.hp <= 0) return
         if (this.player.hp >= this.player.maxHp) return
+        const previousHp = this.player.hp
         this.player.hp = Math.min(this.player.maxHp, this.player.hp + zone.amount)
+        if (this.player.hp > previousHp) this.onSfx?.('healing')
       }
     }
   }

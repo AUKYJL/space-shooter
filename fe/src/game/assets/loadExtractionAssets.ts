@@ -1,4 +1,5 @@
-import { Assets, Texture } from 'pixi.js'
+import { Assets, type Texture } from 'pixi.js'
+import { ensureBundle } from './assets'
 
 import { EXTRACTION_ASSET_URLS } from '@/game/assets/extractionAssetUrls'
 
@@ -7,9 +8,8 @@ export type ExtractionAssets = {
 }
 
 export async function loadExtractionAssets(): Promise<ExtractionAssets> {
-  const urls = [EXTRACTION_ASSET_URLS.base]
-  const loaded = (await Assets.load(urls)) as Record<string, Texture>
+  await ensureBundle('extraction')
 
-  return { base: loaded[EXTRACTION_ASSET_URLS.base] }
+  return { base: Assets.get<Texture>(EXTRACTION_ASSET_URLS.base) }
 }
 

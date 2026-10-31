@@ -1,3 +1,4 @@
+import type { SfxEmitter } from '@/game/audio/audioCatalog'
 import type { ExtractionConfig } from '@/game/core/gameplayConfig'
 import { Container, type Texture } from 'pixi.js'
 
@@ -13,6 +14,7 @@ export type ExtractionState = {
 }
 
 export class ExtractionSystem {
+  private onSfx?: SfxEmitter
   private container: Container
   private player: PlayerShip
   private getViewportSize: () => { width: number; height: number }
@@ -30,11 +32,13 @@ export class ExtractionSystem {
   private config: ExtractionConfig
 
   constructor(config: ExtractionConfig, options: {
+    onSfx?: SfxEmitter
     container: Container
     player: PlayerShip
     getViewportSize: () => { width: number; height: number }
     baseTexture?: Texture
   }) {
+    this.onSfx = options.onSfx
     this.config = config
     this.spawnEveryMs = config.spawnEveryMs
     this.ttlMs = config.ttlMs
@@ -121,6 +125,7 @@ export class ExtractionSystem {
     const y = pad + Math.random() * Math.max(1, viewport.height - pad * 2)
 
     this.base.spawn({ x, y })
+    this.onSfx?.('extraction_open')
     this.ttlRemainingMs = this.ttlMs
     this.progressMs = 0
   }

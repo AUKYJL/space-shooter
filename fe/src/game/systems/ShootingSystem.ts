@@ -1,3 +1,4 @@
+import type { SfxEmitter } from '@/game/audio/audioCatalog'
 import type { WeaponsConfig } from '@/game/core/gameplayConfig'
 import type { WeaponId } from '@/shared/lib/weapons'
 import { Container } from 'pixi.js'
@@ -25,6 +26,7 @@ export function getWeaponPrimaryBulletSpec(weaponId: WeaponId, config: WeaponsCo
 }
 
 export class ShootingSystem {
+  private onSfx?: SfxEmitter
   private player: PlayerShip
   private input: InputSystem
   private getViewportSize: () => { width: number; height: number }
@@ -32,6 +34,7 @@ export class ShootingSystem {
 
   private cooldownMs: number
   private timeUntilNextShotMs = 0
+  private alternateLaser = false
 
   private bulletsActive: Bullet[] = []
   private bulletsPool: Bullet[] = []
@@ -45,6 +48,7 @@ export class ShootingSystem {
   private config: WeaponsConfig
 
   constructor(config: WeaponsConfig, options: {
+    onSfx?: SfxEmitter
     player: PlayerShip
     input: InputSystem
     getViewportSize: () => { width: number; height: number }
@@ -54,6 +58,7 @@ export class ShootingSystem {
     chargedDamage: number
     weaponId: WeaponId
   }) {
+    this.onSfx = options.onSfx
     this.config = config
     this.chargedCooldownMs = config.charged.cooldownMs
     this.player = options.player
@@ -73,6 +78,8 @@ export class ShootingSystem {
     const fire = this.input.getFireState()
     if (fire.isFiring && this.timeUntilNextShotMs <= 0) {
       this.spawnBullet()
+      this.onSfx?.(this.alternateLaser ? 'laser_shot_02' : 'laser_shot_01')
+      this.alternateLaser = !this.alternateLaser
       this.timeUntilNextShotMs = this.getWeaponCooldownMs()
     }
 
@@ -170,6 +177,7 @@ export class ShootingSystem {
   fireChargedShot() {
     if (this.chargedRemainingMs > 0) return
     this.spawnChargedBullet()
+    this.onSfx?.('charge_fire')
     this.chargedRemainingMs = this.chargedCooldownMs
   }
 

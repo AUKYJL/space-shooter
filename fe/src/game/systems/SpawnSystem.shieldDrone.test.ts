@@ -11,19 +11,30 @@ const droneRule = cfg
 function setup(stage = 3, roll = 0.25, maxTurrets = 1) {
   const container = new Container()
   const destroyed = vi.fn()
+  const onSfx = vi.fn()
   const system = new SpawnSystem(GAMEPLAY_CONFIG, { getPlayerPosition: () => ({ x: 200, y: 700 }), container, getViewportSize: () => ({ width: 400, height: 800 }),
     rng: () => roll, enemies: { ...ENEMY_CONFIG, sentryTurret: { ...turretRule, maxActive: maxTurrets } },
-    onEnemyDestroyed: destroyed })
+    onEnemyDestroyed: destroyed, onSfx })
   system.setTuning({ ...new DifficultySystem(GAMEPLAY_CONFIG.difficulty).getSpawnTuning(), spawnEveryMs: 1000000 })
   system.setEnemyStage(stage, 1.3)
   system.update(0)
   system.update(turretRule.firstSpawnDelayMs)
   const turret = system.getEnemies().find((enemy) => enemy.type === 'sentryTurret')!
   const drone = system.getEnemies().find((enemy) => enemy.type === 'shieldDrone')
-  return { system, container, destroyed, turret, drone }
+  return { system, container, destroyed, turret, drone, onSfx }
 }
 
 describe('SpawnSystem shield drones', () => {
+  it('signals actual protection once and does not repeat while shield remains enabled', () => {
+    const { system, turret, onSfx } = setup()
+    system.update(1200)
+    expect(turret.isShielded).toBe(true)
+    system.update(0)
+    system.resolveDestroyedEnemies()
+    expect(onSfx.mock.calls.filter(([id]) => id === 'shield_enable')).toHaveLength(1)
+    system.destroy()
+  })
+
   it('pins server mechanics, bullets and Graphics for the entire configured system', () => {
     const enemies = {
       mineLayer: { ...ENEMY_CONFIG.mineLayer, spawnChance: 0 },

@@ -1,3 +1,4 @@
+import { audioManager } from '@/game/audio/AudioManager'
 import { useEffect, useMemo, useState } from 'react'
 import { Lock } from 'lucide-react'
 
@@ -95,7 +96,7 @@ export function StationsPage() {
                 key={idx}
                 type="button"
                 className="relative w-full rounded-xl border border-white/10 bg-bg-secondary px-4 py-4 text-left"
-                onClick={() => setUnlockSlotIndex(idx)}
+                onClick={() => { audioManager.playSfx('ui_click'); setUnlockSlotIndex(idx) }}
               >
                 <div className="text-sm font-semibold">{`Slot ${idx + 1}`}</div>
                 <div className="mt-1 text-xs text-text-secondary">

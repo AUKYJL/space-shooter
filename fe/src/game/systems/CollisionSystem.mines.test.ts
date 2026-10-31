@@ -20,7 +20,8 @@ function setup() {
     getHealZones: () => [], getEnemyBullets: () => hostile, despawnEnemyBullet: (b: Bullet) => b.despawn() } as unknown as SpawnSystem
   const shooting = { getBullets: () => bullets, despawnBullet: (b: Bullet) => b.despawn() } as unknown as ShootingSystem
   const damaged = vi.fn()
-  const collisions = new CollisionSystem(GAMEPLAY_CONFIG.player.invulnerabilityMs, { player, spawns, shooting, onPlayerDamaged: damaged })
+  const onSfx = vi.fn()
+  const collisions = new CollisionSystem(GAMEPLAY_CONFIG.player.invulnerabilityMs, { player, spawns, shooting, onPlayerDamaged: damaged, onSfx })
   function mine(x = 200, y = 500) {
     const result = new Mine(cfg.mine)
     result.spawn({ x, y })
@@ -34,7 +35,7 @@ function setup() {
     return b
   }
   function cleanup() { player.destroy(); for (const b of [...bullets, ...hostile]) b.destroy() }
-  return { player, mines, ships, hostile, mine, shoot, collisions, damaged, cleanup }
+  return { player, mines, ships, hostile, mine, shoot, collisions, damaged, cleanup, onSfx }
 }
 
 describe('CollisionSystem mines', () => {
@@ -58,6 +59,7 @@ describe('CollisionSystem mines', () => {
     s.collisions.update(450)
     expect(s.player.hp).toBe(4)
     expect(s.damaged).toHaveBeenCalledOnce()
+    expect(s.onSfx.mock.calls).toEqual([['mine_explosion'], ['player_hit'], ['mine_explosion']])
     const third = s.mine()
     third.update(cfg.mine.activationMs)
     s.collisions.update(0)

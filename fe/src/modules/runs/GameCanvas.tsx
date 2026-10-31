@@ -1,3 +1,4 @@
+import { ensureRunAssets } from '@/game/assets/assets'
 import type { WeaponId } from '@/shared/lib/weapons'
 import { useEffect, useMemo, useRef } from 'react'
 
@@ -15,70 +16,64 @@ import type { ScoringConfig, StartRunResponse } from './api/runsApi'
 export function GameCanvas(props: {
   events: EventBus<RunBridgeEventMap>
   init: StartRunResponse & { scoringConfig: ScoringConfig }
+  onReady: () => void
+  onError: (error: Error) => void
 }) {
+  const { events, init, onReady, onError } = props
   const hostRef = useRef<HTMLDivElement | null>(null)
-  const gameRef = useRef<GameApp | null>(null)
-  const tuning = useMemo(() => ({ ...props.init.snapshot.weaponTuning, maxHp: props.init.snapshot.maxHp }), [props.init.snapshot])
+  const tuning = useMemo(() => ({ ...init.snapshot.weaponTuning, maxHp: init.snapshot.maxHp }), [init.snapshot])
 
   useEffect(() => {
     const host = hostRef.current
     if (!host) return
 
+    // An async renderer from an old StrictMode mount must never clear a newer canvas.
+    const mount = document.createElement('div')
+    mount.className = 'h-full w-full'
+    host.appendChild(mount)
+    let game: GameApp | null = null
     let cancelled = false
     let unsubPause: (() => void) | null = null
     let unsubResume: (() => void) | null = null
 
-    ;(async () => {
-      const game = await GameApp.create(host, { backgroundAlpha: 0 })
-      if (cancelled) {
-        game.destroy()
-        return
-      }
-
-      const shipAssets = await loadShipAssets()
-      if (cancelled) {
-        game.destroy()
-        return
-      }
-
-      const asteroidAssets = await loadAsteroidAssets()
-      if (cancelled) {
-        game.destroy()
-        return
-      }
-
-      const lootAssets = await loadLootAssets()
-      if (cancelled) {
-        game.destroy()
-        return
-      }
-
-      const extractionAssets = await loadExtractionAssets()
-      if (cancelled) {
-        game.destroy()
-        return
-      }
-
-      unsubPause = props.events.on('run:pause', () => game.pause())
-      unsubResume = props.events.on('run:resume', () => game.resume())
-      game.setScene(
+    void (async () => {
+      await ensureRunAssets()
+      if (cancelled) return
+      const [shipAssets, asteroidAssets, lootAssets, extractionAssets] = await Promise.all([
+        loadShipAssets(), loadAsteroidAssets(), loadLootAssets(), loadExtractionAssets(),
+      ])
+      if (cancelled) return
+      const created = await GameApp.create(mount, { backgroundAlpha: 0 })
+      if (cancelled) { created.destroy(); return }
+      game = created
+      unsubPause = events.on('run:pause', () => created.pause())
+      unsubResume = events.on('run:resume', () => created.resume())
+      created.setScene(
         new RunScene({
-          scoringConfig: props.init.scoringConfig,
-          gameplayConfig: props.init.snapshot.gameplayConfig,
-          canvas: game.getCanvas(),
-          getViewportSize: () => game.getViewportSize(),
-          events: props.events,
+          scoringConfig: init.scoringConfig,
+          gameplayConfig: init.snapshot.gameplayConfig,
+          canvas: created.getCanvas(),
+          getViewportSize: () => created.getViewportSize(),
+          events: events,
           shipVisuals: shipAssets,
           asteroidVisuals: asteroidAssets,
           lootAssets,
           extractionBaseTexture: extractionAssets.base,
           tuning,
-          weaponId: props.init.snapshot.weaponId as WeaponId,
+          weaponId: init.snapshot.weaponId as WeaponId,
         }),
       )
-      emitRunInit(props.events, props.init)
-      gameRef.current = game
-    })()
+      emitRunInit(events, init)
+      onReady()
+    })().catch((error: unknown) => {
+      unsubPause?.()
+      unsubResume?.()
+      unsubPause = null
+      unsubResume = null
+      game?.destroy()
+      game = null
+      if (!cancelled) onError(error instanceof Error ? error : new Error(String(error)))
+    })
 
     return () => {
       cancelled = true
@@ -86,10 +81,11 @@ export function GameCanvas(props: {
       unsubPause = null
       unsubResume?.()
       unsubResume = null
-      gameRef.current?.destroy()
-      gameRef.current = null
+      game?.destroy()
+      game = null
+      mount.remove()
     }
-  }, [props.events, props.init, tuning])
+  }, [events, init, onReady, onError, tuning])
 
   return (
     <div

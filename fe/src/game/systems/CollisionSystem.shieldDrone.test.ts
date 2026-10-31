@@ -23,7 +23,8 @@ function setup() {
   const drone = spawns.getEnemies().find((enemy) => enemy.type === 'shieldDrone')!
   const bullets: Bullet[] = []
   const shooting = { getBullets: () => bullets, despawnBullet: (bullet: Bullet) => bullet.despawn() } as unknown as ShootingSystem
-  const collisions = new CollisionSystem(GAMEPLAY_CONFIG.player.invulnerabilityMs, { player, shooting, spawns })
+  const onSfx = vi.fn()
+  const collisions = new CollisionSystem(GAMEPLAY_CONFIG.player.invulnerabilityMs, { player, shooting, spawns, onSfx })
   function shoot(target: { position: { x: number; y: number } }, damage: number, pierceLeft = 0) {
     const bullet = new Bullet()
     bullet.spawn({ ...BULLET_OPTIONS, ...target.position, directionX: 0, directionY: 0, speed: 0, damage, pierceLeft })
@@ -35,7 +36,7 @@ function setup() {
     spawns.destroy()
     player.destroy()
   }
-  return { player, spawns, turret, drone, collisions, shoot, destroy }
+  return { player, spawns, turret, drone, collisions, shoot, destroy, onSfx }
 }
 
 describe('CollisionSystem shield drones', () => {
@@ -52,6 +53,7 @@ describe('CollisionSystem shield drones', () => {
     s.shoot(s.drone, 1)
     s.collisions.update(0)
     expect(s.drone.hp).toBe(3)
+    expect(s.onSfx.mock.calls).toEqual([['shield_hit'], ['shield_hit']])
     s.destroy()
   })
 
@@ -66,6 +68,7 @@ describe('CollisionSystem shield drones', () => {
     s.collisions.update(0)
     expect(s.turret.hp).toBe(8)
     expect(s.turret.isShielded).toBe(false)
+    expect(s.onSfx.mock.calls).toEqual([['shield_break']])
     s.spawns.resolveDestroyedEnemies()
     view.sync(s.turret)
     expect(view.shield.visible).toBe(false)

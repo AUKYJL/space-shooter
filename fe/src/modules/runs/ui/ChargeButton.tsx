@@ -11,6 +11,7 @@ export function ChargeButton(props: { charge01: number; onClick: () => void }) {
 
   return (
     <Button
+      sfx={false}
       type="button"
       size="icon"
       className={[

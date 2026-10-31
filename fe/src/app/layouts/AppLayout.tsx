@@ -1,3 +1,6 @@
+import { audioManager } from '@/game/audio/AudioManager'
+import { ensureBundle, preloadGameAssets, useAssetsStore } from '@/game/assets/assets'
+import { LoadingScreen } from '@/shared/ui/LoadingScreen'
 import { Link, Outlet, useMatches, useRouterState } from '@tanstack/react-router'
 import { useEffect, useLayoutEffect, useRef } from 'react'
 import { CircleHelp, Home, Mail, Zap } from 'lucide-react'
@@ -13,8 +16,13 @@ const iconLinkActiveClassName = 'bg-neon-cyan text-bg-primary'
 const iconLinkInactiveClassName = ''
 
 export function AppLayout() {
+  const menuAssets = useAssetsStore((state) => state.bundles.menu)
   const token = useSessionStore((s) => s.accessToken)
   useRunConfigQuery(Boolean(token))
+  useEffect(() => {
+    if (token && menuAssets.status === 'idle') void ensureBundle('menu').catch(() => {})
+    if (token && menuAssets.status === 'ready') preloadGameAssets()
+  }, [token, menuAssets.status])
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const matches = useMatches()
   const mainRef = useRef<HTMLElement | null>(null)
@@ -22,6 +30,10 @@ export function AppLayout() {
     value.length > 1 && value.endsWith('/') ? value.slice(0, -1) : value
 
   const currentPath = normalizePathname(pathname)
+  useEffect(() => {
+    if (!token || currentPath === '/login' || currentPath === '/run') audioManager.stopMusic()
+    else audioManager.playMusic('menu-theme')
+  }, [token, currentPath])
   const showBottomNav = !matches.some(
     (match) => (match.staticData as { showBottomNav?: boolean } | undefined)?.showBottomNav === false,
   )
@@ -61,6 +73,11 @@ export function AppLayout() {
     mainRef.current?.scrollTo({ top: 0, left: 0 })
   }, [currentPath, showBottomNav])
 
+  if (token && menuAssets.status !== 'ready') {
+    return <LoadingScreen label="Loading menu…" progress={menuAssets.progress}
+      error={menuAssets.status === 'error' ? 'Failed to load menu assets.' : null} onRetry={() => { void ensureBundle('menu').catch(() => {}) }} />
+  }
+
   return (
     <div
       className={cn(
@@ -81,7 +98,7 @@ export function AppLayout() {
       </main>
 
       {showBottomNav ? (
-        <nav className="bottom-nav fixed inset-x-0 bottom-0 z-20 border-t border-white/5 bg-bg-primary/70 backdrop-blur">
+        <nav onClick={(event) => { if ((event.target as Element).closest('a')) audioManager.playSfx('ui_click') }} className="bottom-nav fixed inset-x-0 bottom-0 z-20 border-t border-white/5 bg-bg-primary/70 backdrop-blur">
           <div className="mx-auto flex max-w-[420px] items-center justify-between px-4 py-3">
             <Link to="/" className={navClassName('/')} aria-label="Home">
               <Home className="size-5" />

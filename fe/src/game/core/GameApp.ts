@@ -27,13 +27,18 @@ export class GameApp {
   static async create(containerEl: HTMLElement, options: GameAppOptions = {}) {
     const app = new Application()
 
-    await app.init({
-      backgroundAlpha: options.backgroundAlpha ?? 0,
-      antialias: true,
-      autoDensity: true,
-      resolution: Math.min(window.devicePixelRatio || 1, 2),
-      resizeTo: containerEl,
-    })
+    try {
+      await app.init({
+        backgroundAlpha: options.backgroundAlpha ?? 0,
+        antialias: true,
+        autoDensity: true,
+        resolution: Math.min(window.devicePixelRatio || 1, 2),
+        resizeTo: containerEl,
+      })
+    } catch (error) {
+      if (app.renderer) app.destroy(true)
+      throw error
+    }
 
     containerEl.appendChild(app.canvas)
     const instance = new GameApp(containerEl, app)

@@ -1,3 +1,4 @@
+import { audioManager } from '@/game/audio/AudioManager'
 import { useNavigate } from '@tanstack/react-router'
 
 import { useAppStore } from '@/shared/store/appStore'
@@ -62,7 +63,7 @@ export function RunResultDrawer(props: {
             <div className="text-sm text-text-secondary">Score</div>
             <div className="text-3xl font-bold">{props.result ? (props.result.score?.toLocaleString() ?? '—') : model.score.toLocaleString()}</div>
             {props.pending ? <div>Confirming result…</div> : null}
-            {props.error ? <div>Could not save result. <button className="underline" onClick={props.onRetry}>Retry</button></div> : null}
+            {props.error ? <div>Could not save result. <button className="underline" onClick={() => { props.onRetry(); audioManager.playSfx('ui_click') }}>Retry</button></div> : null}
             {props.result?.accepted === false ? <div>Result rejected. No rewards or record update.</div> : null}
           </div>
 
@@ -109,6 +110,7 @@ export function RunResultDrawer(props: {
             </Button>
 
             <Button
+              sfx="ui_start"
               disabled={props.pending || !props.result}
               size="xl"
               className="h-14 w-full rounded-[14px] border-[1.5px] border-neon-purple bg-bg-tertiary text-base font-bold text-neon-purple hover:bg-bg-tertiary/80"

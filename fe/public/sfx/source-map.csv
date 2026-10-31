@@ -1,0 +1,33 @@
+﻿file,event,source_archive,source_file,duration_s,suggested_volume
+sfx/player/laser-shot-01.ogg,Обычный выстрел — вариант 1,kenney_sci-fi-sounds.zip,Audio/laserSmall_000.ogg,0.239,0.23
+sfx/player/laser-shot-02.ogg,Обычный выстрел — вариант 2,kenney_sci-fi-sounds.zip,Audio/laserSmall_001.ogg,0.247,0.23
+sfx/player/charge-up.ogg,Энергетический заряд спецатаки,kenney_sci-fi-sounds.zip,Audio/forceField_000.ogg,0.954,0.35
+sfx/player/charge-ready.ogg,Спецатака готова,kenney_interface-sounds.zip,Audio/confirmation_003.ogg,0.322,0.4
+sfx/player/charge-fire.ogg,Мощный заряженный выстрел,kenney_sci-fi-sounds.zip,Audio/laserLarge_002.ogg,0.744,0.48
+sfx/player/player-hit.ogg,Получение урона игроком,kenney_sci-fi-sounds.zip,Audio/impactMetal_002.ogg,0.471,0.58
+sfx/player/player-death.ogg,Уничтожение корабля игрока,SpaceSFX1.zip,SpaceSFX1/explosion5.ogg,1.657,0.52
+sfx/asteroids/asteroid-hit.ogg,Попадание по астероиду без уничтожения,kenney_impact-sounds.zip,Audio/impactMetal_light_002.ogg,0.236,0.24
+sfx/asteroids/asteroid-break.ogg,Разрушение малого астероида,SpaceSFX1.zip,SpaceSFX1/explosion2.ogg,0.454,0.33
+sfx/asteroids/asteroid-explosion.ogg,Разрушение крупного астероида,kenney_sci-fi-sounds.zip,Audio/explosionCrunch_003.ogg,1.553,0.47
+sfx/loot/loot-pickup.ogg,Подбор монет и обычного лута,kenney_interface-sounds.zip,Audio/pluck_001.ogg,0.102,0.24
+sfx/loot/rare-pickup.ogg,Подбор редкого ресурса,kenney_interface-sounds.zip,Audio/confirmation_004.ogg,0.49,0.36
+sfx/enemies/turret-deploy.ogg,Развёртывание турели,kenney_sci-fi-sounds.zip,Audio/doorOpen_001.ogg,0.529,0.44
+sfx/enemies/turret-lock.ogg,Сигнал захвата цели турелью,SpaceSFX1.zip,SpaceSFX1/message1.ogg,0.808,0.26
+sfx/enemies/turret-fire.ogg,Выстрел турели,kenney_sci-fi-sounds.zip,Audio/laserRetro_002.ogg,0.255,0.25
+sfx/enemies/enemy-destroy.ogg,Уничтожение обычного врага,kenney_sci-fi-sounds.zip,Audio/explosionCrunch_000.ogg,0.777,0.45
+sfx/enemies/shield-enable.ogg,Активация защитного поля дрона,kenney_sci-fi-sounds.zip,Audio/forceField_001.ogg,0.953,0.34
+sfx/enemies/shield-hit.ogg,Попадание по активному щиту,kenney_sci-fi-sounds.zip,Audio/forceField_003.ogg,0.956,0.23
+sfx/enemies/shield-break.ogg,Разрушение защитного поля,kenney_impact-sounds.zip,Audio/impactGlass_heavy_001.ogg,0.429,0.45
+sfx/enemies/mine-drop.ogg,Сброс мины с Mine Layer,kenney_interface-sounds.zip,Audio/drop_004.ogg,0.287,0.25
+sfx/enemies/mine-armed.ogg,Мина активирована / предупреждение,kenney_interface-sounds.zip,Audio/error_007.ogg,0.192,0.32
+sfx/enemies/mine-explosion.ogg,Взрыв активированной мины,SpaceSFX1.zip,SpaceSFX1/explosion4.ogg,0.805,0.44
+sfx/zones/hazard-damage.ogg,Получение урона от опасной зоны,kenney_interface-sounds.zip,Audio/error_001.ogg,0.165,0.26
+sfx/zones/healing.ogg,Восстановление HP в лечебной зоне,kenney_interface-sounds.zip,Audio/confirmation_002.ogg,0.539,0.3
+sfx/extraction/extraction-open.ogg,Появление и активация зоны эвакуации,kenney_sci-fi-sounds.zip,Audio/doorOpen_002.ogg,0.533,0.5
+sfx/extraction/extraction-success.ogg,Успешная эвакуация / варп,SpaceSFX1.zip,SpaceSFX1/warpout.ogg,4.116,0.6
+sfx/progress/stage-up.ogg,Начало новой стадии,kenney_interface-sounds.zip,Audio/maximize_005.ogg,0.526,0.42
+sfx/progress/new-record.ogg,Установлен новый рекорд,kenney_interface-sounds.zip,Audio/maximize_009.ogg,0.225,0.4
+sfx/progress/game-over.ogg,Сигнал Game Over на итоговом экране,kenney_interface-sounds.zip,Audio/error_005.ogg,0.5,0.42
+sfx/ui/ui-click.ogg,Нажатие кнопок интерфейса,kenney_interface-sounds.zip,Audio/click_001.ogg,0.1,0.26
+sfx/ui/ui-pause.ogg,Пауза и возврат в меню,kenney_interface-sounds.zip,Audio/back_002.ogg,0.07,0.28
+sfx/ui/ui-start.ogg,Подтверждение начала забега,kenney_interface-sounds.zip,Audio/select_003.ogg,0.383,0.4

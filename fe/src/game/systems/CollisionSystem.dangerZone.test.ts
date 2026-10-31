@@ -1,5 +1,5 @@
 import { GAMEPLAY_CONFIG } from '@/test/runConfig'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import { DangerZone } from '@/game/entities/DangerZone'
 import { PlayerShip } from '@/game/entities/PlayerShip'
@@ -26,7 +26,8 @@ describe('CollisionSystem danger zone', () => {
       getHealZones: () => [],
     } as unknown as SpawnSystem
 
-    const collisions = new CollisionSystem(GAMEPLAY_CONFIG.player.invulnerabilityMs, { player, shooting, spawns })
+    const onSfx = vi.fn()
+    const collisions = new CollisionSystem(GAMEPLAY_CONFIG.player.invulnerabilityMs, { player, shooting, spawns, onSfx })
 
     collisions.update(400)
     collisions.update(400)
@@ -34,5 +35,6 @@ describe('CollisionSystem danger zone', () => {
 
     collisions.update(250)
     expect(player.hp).toBe(4)
+    expect(onSfx.mock.calls).toEqual([['hazard_damage']])
   })
 })

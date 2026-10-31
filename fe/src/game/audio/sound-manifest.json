@@ -1,0 +1,130 @@
+{
+  "laser_shot_01": {
+    "src": "/sfx/player/laser-shot-01.ogg",
+    "volume": 0.23
+  },
+  "laser_shot_02": {
+    "src": "/sfx/player/laser-shot-02.ogg",
+    "volume": 0.23
+  },
+  "charge_up": {
+    "src": "/sfx/player/charge-up.ogg",
+    "volume": 0.35
+  },
+  "charge_ready": {
+    "src": "/sfx/player/charge-ready.ogg",
+    "volume": 0.4
+  },
+  "charge_fire": {
+    "src": "/sfx/player/charge-fire.ogg",
+    "volume": 0.48
+  },
+  "player_hit": {
+    "src": "/sfx/player/player-hit.ogg",
+    "volume": 0.58
+  },
+  "player_death": {
+    "src": "/sfx/player/player-death.ogg",
+    "volume": 0.52
+  },
+  "asteroid_hit": {
+    "src": "/sfx/asteroids/asteroid-hit.ogg",
+    "volume": 0.24
+  },
+  "asteroid_break": {
+    "src": "/sfx/asteroids/asteroid-break.ogg",
+    "volume": 0.33
+  },
+  "asteroid_explosion": {
+    "src": "/sfx/asteroids/asteroid-explosion.ogg",
+    "volume": 0.47
+  },
+  "loot_pickup": {
+    "src": "/sfx/loot/loot-pickup.ogg",
+    "volume": 0.24
+  },
+  "rare_pickup": {
+    "src": "/sfx/loot/rare-pickup.ogg",
+    "volume": 0.36
+  },
+  "turret_deploy": {
+    "src": "/sfx/enemies/turret-deploy.ogg",
+    "volume": 0.44
+  },
+  "turret_lock": {
+    "src": "/sfx/enemies/turret-lock.ogg",
+    "volume": 0.26
+  },
+  "turret_fire": {
+    "src": "/sfx/enemies/turret-fire.ogg",
+    "volume": 0.25
+  },
+  "enemy_destroy": {
+    "src": "/sfx/enemies/enemy-destroy.ogg",
+    "volume": 0.45
+  },
+  "shield_enable": {
+    "src": "/sfx/enemies/shield-enable.ogg",
+    "volume": 0.34
+  },
+  "shield_hit": {
+    "src": "/sfx/enemies/shield-hit.ogg",
+    "volume": 0.23
+  },
+  "shield_break": {
+    "src": "/sfx/enemies/shield-break.ogg",
+    "volume": 0.45
+  },
+  "mine_drop": {
+    "src": "/sfx/enemies/mine-drop.ogg",
+    "volume": 0.25
+  },
+  "mine_armed": {
+    "src": "/sfx/enemies/mine-armed.ogg",
+    "volume": 0.32
+  },
+  "mine_explosion": {
+    "src": "/sfx/enemies/mine-explosion.ogg",
+    "volume": 0.44
+  },
+  "hazard_damage": {
+    "src": "/sfx/zones/hazard-damage.ogg",
+    "volume": 0.26
+  },
+  "healing": {
+    "src": "/sfx/zones/healing.ogg",
+    "volume": 0.3
+  },
+  "extraction_open": {
+    "src": "/sfx/extraction/extraction-open.ogg",
+    "volume": 0.5
+  },
+  "extraction_success": {
+    "src": "/sfx/extraction/extraction-success.ogg",
+    "volume": 0.6
+  },
+  "stage_up": {
+    "src": "/sfx/progress/stage-up.ogg",
+    "volume": 0.42
+  },
+  "new_record": {
+    "src": "/sfx/progress/new-record.ogg",
+    "volume": 0.4
+  },
+  "game_over": {
+    "src": "/sfx/progress/game-over.ogg",
+    "volume": 0.42
+  },
+  "ui_click": {
+    "src": "/sfx/ui/ui-click.ogg",
+    "volume": 0.26
+  },
+  "ui_pause": {
+    "src": "/sfx/ui/ui-pause.ogg",
+    "volume": 0.28
+  },
+  "ui_start": {
+    "src": "/sfx/ui/ui-start.ogg",
+    "volume": 0.4
+  }
+}

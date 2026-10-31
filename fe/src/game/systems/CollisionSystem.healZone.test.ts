@@ -1,5 +1,5 @@
 import { GAMEPLAY_CONFIG } from '@/test/runConfig'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import { HealZone } from '@/game/entities/HealZone'
 import { PlayerShip } from '@/game/entities/PlayerShip'
@@ -27,7 +27,8 @@ describe('CollisionSystem heal zone', () => {
       getHealZones: () => [zone],
     } as unknown as SpawnSystem
 
-    const collisions = new CollisionSystem(GAMEPLAY_CONFIG.player.invulnerabilityMs, { player, shooting, spawns })
+    const onSfx = vi.fn()
+    const collisions = new CollisionSystem(GAMEPLAY_CONFIG.player.invulnerabilityMs, { player, shooting, spawns, onSfx })
 
     collisions.update(999)
     expect(player.hp).toBe(3)
@@ -40,5 +41,6 @@ describe('CollisionSystem heal zone', () => {
 
     collisions.update(2000)
     expect(player.hp).toBe(5)
+    expect(onSfx.mock.calls).toEqual([['healing'], ['healing']])
   })
 })

@@ -1,13 +1,13 @@
 import { describe, expect, it, vi } from 'vitest'
 
+vi.mock('./assets', () => ({ ensureBundle: vi.fn(async () => {}) }))
+
 vi.mock('pixi.js', async (importOriginal) => {
   const actual = await importOriginal<typeof import('pixi.js')>()
   return {
     ...actual,
     Assets: {
-      load: vi.fn(async (urls: string[]) =>
-        Object.fromEntries(urls.map((u) => [u, actual.Texture.WHITE])),
-      ),
+      get: vi.fn(() => actual.Texture.WHITE),
     },
   }
 })

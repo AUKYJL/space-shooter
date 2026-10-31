@@ -1,3 +1,4 @@
+import { AudioSettings } from '@/shared/ui/AudioSettings'
 import { useNavigate } from '@tanstack/react-router'
 
 import { Button } from '@/shared/ui/button'
@@ -13,8 +14,10 @@ export function PauseOverlay(props: { open: boolean; onResume: () => void }) {
         <div className="text-center text-2xl font-extrabold text-neon-cyan">Paused</div>
         <div className="mt-2 text-center text-xs text-text-secondary">Game is frozen. Resume when ready.</div>
 
+        <div className="mt-4"><AudioSettings /></div>
+
         <div className="mt-6 space-y-3">
-          <Button size="xl" className="h-12 w-full rounded-[14px]" onClick={props.onResume}>
+          <Button sfx="ui_pause" size="xl" className="h-12 w-full rounded-[14px]" onClick={props.onResume}>
             Resume
           </Button>
           <Button
