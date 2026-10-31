@@ -13,7 +13,7 @@ import type { PlayerShip } from '@/game/entities/PlayerShip'
 import type { ScoringConfig } from '@/modules/runs/api/runsApi'
 import { Bullet } from '@/game/entities/Bullet'
 
-const config = { version: 7, asteroidPoints: { normal: 10, fast: 20, big: 30, armored: 50 }, stageBonus: 100,
+const config = { asteroidPoints: { normal: 10, fast: 20, big: 30, armored: 50 }, stageBonus: 100,
   enemyPoints: { sentryTurret: 100, shieldDrone: 50, mineLayer: 150 },
   enemies: ENEMY_CONFIG }
 const droneConfig = { ...config, enemyPoints: { sentryTurret: 100, shieldDrone: 50, mineLayer: 150 },
@@ -61,10 +61,6 @@ describe('RunScene enemies', () => {
     expect(drone.turret).toBeNull()
     expect(enemy.type === 'sentryTurret' && enemy.shieldDrone).toBeNull()
     scene.destroy()
-  })
-
-  it('does not reconstruct enemy defaults for legacy snapshots', () => {
-    expect(() => setup({ ...droneConfig, version: 2 }, 3)).toThrow('Unsupported run configuration')
   })
 
   it('counts a lethal hit exactly once before the death result, with no loot or charge', () => {

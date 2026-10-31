@@ -15,7 +15,7 @@ export class RunsController {
 
   @Post("/runs/start")
   async start(@CurrentUser() user: CurrentUserType, @Body() body: StartRunDto) {
-    return await this.runs.startRun(user.id, body.weaponId, body.scoringConfigVersion);
+    return await this.runs.startRun(user.id, body.weaponId);
   }
 
   @Post("/runs/finish")

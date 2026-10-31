@@ -20,7 +20,7 @@ export type ShieldDroneConfig = Readonly<{
 
 export const SHIELD_DRONE_CONFIG: ShieldDroneConfig = Object.freeze({
   contactDamage: 1,
-  minStage: 2,
+  minStage: 4,
   spawnChance: 1,
   maxActive: 1,
   hp: 4,

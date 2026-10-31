@@ -1,3 +1,4 @@
+import type { ZoneAssets } from '@/game/assets/loadZoneAssets'
 import type { SfxEmitter } from '@/game/audio/audioCatalog'
 import type { GameplayConfig } from '@/game/core/gameplayConfig'
 import { DifficultySystem } from './DifficultySystem'
@@ -42,11 +43,12 @@ export class SpawnSystem {
   private getPlayerPosition: () => { x: number; y: number }
   private onAsteroidDestroyed?: (asteroid: Asteroid) => void
   private enemyAssets: EnemyAssets
+  private zoneAssets?: ZoneAssets
   private asteroidVisuals?: AsteroidAssets
   private zonesContainer: Container
   private rng: () => number
 
-  private enemyConfig: Required<EnemyConfigs>
+  private enemyConfig: EnemyConfigs
   private dronePool: ShieldDrone[] = []
   private droneViews = new Map<ShieldDrone, ShieldDroneView>()
   private onEnemyDestroyed?: (enemy: SentryTurret | ShieldDrone | MineLayer) => void
@@ -95,6 +97,7 @@ export class SpawnSystem {
     getPlayerPosition: () => { x: number; y: number }
     onAsteroidDestroyed?: (asteroid: Asteroid) => void
     enemyAssets: EnemyAssets
+    zoneAssets?: ZoneAssets
     asteroidVisuals?: AsteroidAssets
     asteroidVisualTuning?: AsteroidVisualTuning
     rng?: () => number
@@ -103,8 +106,7 @@ export class SpawnSystem {
   }) {
     this.onSfx = options.onSfx
     this.config = config
-    if (!options.enemies?.sentryTurret || !options.enemies.shieldDrone || !options.enemies.mineLayer) throw new Error('Missing enemy configuration')
-    this.enemyConfig = structuredClone(options.enemies) as Required<EnemyConfigs>
+    this.enemyConfig = structuredClone(options.enemies)
     const tuning = new DifficultySystem(config.difficulty).getSpawnTuning()
     this.maxActive = Math.max(1, Math.floor(tuning.maxActive))
     this.spawnEveryMs = Math.max(config.spawn.minSpawnEveryMs, Math.floor(tuning.spawnEveryMs))
@@ -118,6 +120,7 @@ export class SpawnSystem {
     this.getViewportSize = options.getViewportSize
     this.getPlayerPosition = options.getPlayerPosition
     this.onAsteroidDestroyed = options.onAsteroidDestroyed
+    this.zoneAssets = options.zoneAssets
     this.enemyAssets = options.enemyAssets
     this.asteroidVisuals = options.asteroidVisuals
     this.rng = options.rng ?? Math.random
@@ -247,7 +250,7 @@ export class SpawnSystem {
     const x = margin + this.rng() * Math.max(0, viewport.width - margin * 2)
     const stopY = Math.min(viewport.height / 2, Math.max(turretConfig.radius, viewport.height * turretConfig.stopHeightRatio))
     const enemy = this.enemyPool.pop() ?? new SentryTurret(turretConfig)
-    if (!this.enemyViews.has(enemy)) this.enemyViews.set(enemy, new SentryTurretView(turretConfig, this.enemyConfig!.shieldDrone, this.enemyAssets))
+    if (!this.enemyViews.has(enemy)) this.enemyViews.set(enemy, new SentryTurretView(turretConfig, this.enemyConfig.shieldDrone, this.enemyAssets))
     enemy.spawn(x, stopY, this.enemyStageMultiplier)
     this.onSfx?.('turret_deploy')
     const visual = this.enemyViews.get(enemy)!
@@ -292,7 +295,7 @@ export class SpawnSystem {
   }
 
   private dropMine(position: Position) {
-    const cfg = this.enemyConfig!.mineLayer!.mine
+    const cfg = this.enemyConfig.mineLayer.mine
     if (this.mines.length >= cfg.maxActive) return
     const mine = this.minePool.pop() ?? new Mine(cfg)
     if (!this.mineViews.has(mine)) this.mineViews.set(mine, new MineView(cfg, this.enemyAssets))
@@ -549,7 +552,7 @@ export class SpawnSystem {
     const x = pad + this.rng() * Math.max(1, viewport.width - pad * 2)
     const y = pad + this.rng() * Math.max(1, viewport.height - pad * 2)
 
-    const zone = this.dangerZonesPool.pop() ?? new DangerZoneEntity(this.config.zones.danger)
+    const zone = this.dangerZonesPool.pop() ?? new DangerZoneEntity(this.config.zones.danger, this.zoneAssets?.danger)
     zone.spawn({ x, y, ttlMs: this.config.zones.danger.ttlMs, radius: this.config.zones.danger.radius })
     this.dangerZonesActive.push(zone)
     this.zonesContainer.addChild(zone.view)
@@ -566,7 +569,7 @@ export class SpawnSystem {
     const x = pad + this.rng() * Math.max(1, viewport.width - pad * 2)
     const y = pad + this.rng() * Math.max(1, viewport.height - pad * 2)
 
-    const zone = this.healZonesPool.pop() ?? new HealZoneEntity(this.config.zones.heal)
+    const zone = this.healZonesPool.pop() ?? new HealZoneEntity(this.config.zones.heal, this.zoneAssets?.heal)
     zone.spawn({ x, y, ttlMs: this.config.zones.heal.ttlMs, radius: this.config.zones.heal.radius })
     this.healZonesActive.push(zone)
     this.zonesContainer.addChild(zone.view)

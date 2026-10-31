@@ -1,3 +1,4 @@
+import { loadZoneAssets } from '@/game/assets/loadZoneAssets'
 import { ensureRunAssets } from '@/game/assets/assets'
 import type { WeaponId } from '@/shared/lib/weapons'
 import { useEffect, useMemo, useRef } from 'react'
@@ -40,8 +41,8 @@ export function GameCanvas(props: {
     void (async () => {
       await ensureRunAssets()
       if (cancelled) return
-      const [shipAssets, asteroidAssets, lootAssets, extractionAssets, enemyAssets] = await Promise.all([
-        loadShipAssets(), loadAsteroidAssets(), loadLootAssets(), loadExtractionAssets(), loadEnemyAssets(),
+      const [shipAssets, asteroidAssets, lootAssets, extractionAssets, enemyAssets, zoneAssets] = await Promise.all([
+        loadShipAssets(), loadAsteroidAssets(), loadLootAssets(), loadExtractionAssets(), loadEnemyAssets(), loadZoneAssets(),
       ])
       if (cancelled) return
       const created = await GameApp.create(mount, { backgroundAlpha: 0 })
@@ -59,6 +60,7 @@ export function GameCanvas(props: {
           shipVisuals: shipAssets,
           asteroidVisuals: asteroidAssets,
           lootAssets,
+          zoneAssets,
           enemyAssets,
           extractionBaseTexture: extractionAssets.base,
           tuning,

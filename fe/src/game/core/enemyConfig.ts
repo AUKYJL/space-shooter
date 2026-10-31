@@ -90,8 +90,9 @@ export type MineLayerConfig = Readonly<{
   outlineColor: number
   outlineWidth: number
   mine: MineConfig
-}> & (Readonly<{ minHeightRatio: number; maxHeightRatio: number }>
-  | Readonly<{ heightRatio: number }>) // Historical v5 snapshots retain fixed height.
+  minHeightRatio: number
+  maxHeightRatio: number
+}>
 
 
-export type EnemyConfigs = Readonly<{ sentryTurret: SentryTurretConfig; shieldDrone: ShieldDroneConfig; mineLayer?: MineLayerConfig }>
+export type EnemyConfigs = Readonly<{ sentryTurret: SentryTurretConfig; shieldDrone: ShieldDroneConfig; mineLayer: MineLayerConfig }>

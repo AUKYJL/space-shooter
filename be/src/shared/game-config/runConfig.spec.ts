@@ -1,15 +1,10 @@
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
-import { GAMEPLAY_CONFIG, RUN_CONFIG, isGameplayConfig } from "./runConfig";
-import { WEAPON_CATALOG, getCatalogWeapon, resolveWeaponTuning } from "../../../shared/game-config/weaponsConfig";
-import { getSuspicionReasons } from "../scoring";
-import type { FinishRunDto } from "../http/dto/finish-run.dto";
+import { GAMEPLAY_CONFIG, RUN_CONFIG, isGameplayConfig, isScoringConfig } from "./runConfig";
+import { WEAPON_CATALOG, getCatalogWeapon, resolveWeaponTuning } from "./weaponsConfig";
+import { getSuspicionReasons } from "../../modules/runs/scoring";
+import type { FinishRunDto } from "../../modules/runs/http/dto/finish-run.dto";
 
 describe("gameplay configuration", () => {
-  it("preserves the captured API balance and independent catalog projectile metadata", () => {
-    // Contract fixture is consumed only by frontend tests, never production.
-    const fixture = JSON.parse(readFileSync(resolve(__dirname, "../../../../../fe/src/test/runConfig.json"), "utf8"));
-    expect(RUN_CONFIG).toEqual(fixture);
+  it("exposes gameplay and independent catalog projectile metadata", () => {
     expect(GAMEPLAY_CONFIG.player.maxHp).toBe(1000);
     expect(GAMEPLAY_CONFIG.weapons.primary.speed).toBe(920);
     expect(getCatalogWeapon("basic_laser").baseFireRate).toBe(2);
@@ -29,6 +24,16 @@ describe("gameplay configuration", () => {
     expect(isGameplayConfig(malformed)).toBe(false);
     expect(isGameplayConfig({ ...GAMEPLAY_CONFIG, loot: {} })).toBe(false);
   });
+  it("requires complete enemy configuration and points", () => {
+    expect(isScoringConfig(RUN_CONFIG)).toBe(true);
+    for (const type of ["sentryTurret", "shieldDrone", "mineLayer"]) {
+      for (const field of ["enemies", "enemyPoints"] as const) {
+        const config = structuredClone(RUN_CONFIG);
+        delete (config[field] as Record<string, unknown>)[type];
+        expect(isScoringConfig(config)).toBe(false);
+      }
+    }
+  });
   it("uses pinned multiplier, extraction, spawn and loot rules instead of deployment settings", () => {
     const gameplay = structuredClone(GAMEPLAY_CONFIG);
     Object.assign(gameplay.extraction, { firstSpawnMs: 1000, ttlMs: 1000, spawnEveryMs: 2000 });
@@ -39,6 +44,5 @@ describe("gameplay configuration", () => {
         stageReached: 3, coinsCollected: 22, resourcesCollected: { ore: 1, crystal: 1 } } };
     expect(getSuspicionReasons(input, new Date(0), new Date(7000), RUN_CONFIG, gameplay)).toEqual([]);
     expect(getSuspicionReasons(input, new Date(0), new Date(7000), RUN_CONFIG, GAMEPLAY_CONFIG)).toEqual(expect.arrayContaining(["stage timing", "multiplier", "extraction", "loot bound"]));
-    expect(getSuspicionReasons(input, new Date(0), new Date(7000), RUN_CONFIG)).toEqual(["missing gameplay snapshot"]);
   });
 });

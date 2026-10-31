@@ -43,7 +43,7 @@ vi.mock('@/shared/ui/drawer', () => ({
 }))
 
 const config = structuredClone(RUN_CONFIG)
-const initial = { runId: 'one', seed: 1, scoringConfigVersion: 7, snapshot: { weaponId: 'basic_laser', damage: 1, fireRate: 2, maxHp: 5, scoringConfig: config, gameplayConfig: GAMEPLAY_CONFIG, weaponTuning: WEAPON_TUNING } }
+const initial = { runId: 'one', seed: 1, snapshot: { weaponId: 'basic_laser', damage: 1, fireRate: 2, maxHp: 5, scoringConfig: config, gameplayConfig: GAMEPLAY_CONFIG, weaponTuning: WEAPON_TUNING } }
 const summary: RunSummary = { score: 110, stageReached: 1, durationMs: 20_000, endedBy: 'death', extractionCount: 0, multiplier: 1,
   collected: { coins: 10, iron: 2, gold: 0, crystal: 1 }, banked: { coins: 0, iron: 0, gold: 0, crystal: 0 },
   enemiesDestroyed: { sentryTurret: 0 },
@@ -70,7 +70,7 @@ describe('run page', () => {
   it('starts exactly once in StrictMode', async () => {
     mount()
     await screen.findByText('one')
-    expect(getRunConfig).toHaveBeenCalledTimes(1)
+    expect(getRunConfig).not.toHaveBeenCalled()
     expect(startRun).toHaveBeenCalledTimes(1)
     expect(screen.queryByText('Starting run…')).not.toBeInTheDocument()
   })

@@ -1,3 +1,4 @@
+import type { ZoneAssets } from '@/game/assets/loadZoneAssets'
 import { audioManager } from '@/game/audio/AudioManager'
 import type { GameplayConfig } from '@/game/core/gameplayConfig'
 import type { WeaponId } from '@/shared/lib/weapons'
@@ -64,6 +65,7 @@ export class RunScene implements Scene {
     weaponId: WeaponId
     shipVisuals?: PlayerShipVisuals
     enemyAssets: EnemyAssets
+    zoneAssets?: ZoneAssets
     asteroidVisuals?: AsteroidAssets
     lootAssets?: LootAssets
     extractionBaseTexture?: Texture
@@ -75,7 +77,6 @@ export class RunScene implements Scene {
       asteroidVisualTuning?: AsteroidVisualTuning
     }
   }) {
-    if (options.scoringConfig.version !== 7 || !options.scoringConfig.enemies?.mineLayer) throw new Error('Unsupported run configuration')
     this.gameplayConfig = structuredClone(options.gameplayConfig)
     const config = this.gameplayConfig
     const onSfx = audioManager.playSfx.bind(audioManager)
@@ -104,7 +105,7 @@ export class RunScene implements Scene {
     })
     this.spawns = new SpawnSystem(config, {
       onSfx,
-      enemies: this.scoringConfig.enemies!,
+      enemies: this.scoringConfig.enemies,
       enemyAssets: options.enemyAssets,
       onEnemyDestroyed: (enemy) => { this.enemiesDestroyed[enemy.type] = (this.enemiesDestroyed[enemy.type] ?? 0) + 1 },
       container: this.asteroidsContainer,
@@ -115,6 +116,7 @@ export class RunScene implements Scene {
         this.loot.onAsteroidDestroyed(asteroid)
         this.charge.onAsteroidDestroyed(asteroid.type)
       },
+      zoneAssets: options.zoneAssets,
       asteroidVisuals: options.asteroidVisuals,
       asteroidVisualTuning: options.tuning?.asteroidVisualTuning,
     })

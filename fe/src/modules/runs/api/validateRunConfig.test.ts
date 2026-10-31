@@ -3,7 +3,7 @@ import { RUN_CONFIG, GAMEPLAY_CONFIG, WEAPON_TUNING } from '@/test/runConfig'
 import { validateRunConfig, validateRunStart } from './validateRunConfig'
 
 function start() {
-  return structuredClone({ runId: 'run', seed: 1, scoringConfigVersion: 7,
+  return structuredClone({ runId: 'run', seed: 1,
     snapshot: { weaponId: 'basic_laser', damage: 1, fireRate: 2, maxHp: 1000,
       scoringConfig: RUN_CONFIG, gameplayConfig: GAMEPLAY_CONFIG, weaponTuning: WEAPON_TUNING } })
 }
@@ -47,11 +47,7 @@ describe('server gameplay contract', () => {
       expect(() => validateRunStart(copy)).toThrow('Invalid run configuration')
     }
   })
-  it('rejects unsupported versions, inconsistent snapshots and unknown weapons', () => {
-    const legacy = start(); legacy.snapshot.scoringConfig.version = 6
-    expect(() => validateRunStart(legacy)).toThrow('unsupported version')
-    const mismatch = start(); mismatch.scoringConfigVersion = 8
-    expect(() => validateRunStart(mismatch)).toThrow('snapshot version')
+  it('rejects unknown weapons', () => {
     const unknown = start(); unknown.snapshot.weaponId = 'unknown'
     expect(() => validateRunStart(unknown)).toThrow('weaponId')
   })

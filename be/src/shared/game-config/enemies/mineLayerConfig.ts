@@ -44,7 +44,7 @@ export type MineLayerConfig = Readonly<{
 }>
 
 export const MINE_LAYER_CONFIG: MineLayerConfig = Object.freeze({
-  minStage: 1,
+  minStage: 3,
   spawnChance: 1,
   firstSpawnDelayMs: 2000,
   spawnEveryMs: 18000,

@@ -1,7 +1,8 @@
-import { GAMEPLAY_CONFIG } from "./config/runConfig";
+import { GAMEPLAY_CONFIG } from "../../shared/game-config/runConfig";
 const getSuspicionReasons = (input: FinishRunDto, startedAt: Date, now: Date, config: ScoringConfig = SCORING_CONFIG, gameplay = GAMEPLAY_CONFIG) =>
   checkSuspicion(input, startedAt, now, config, gameplay);
-import { calculateScore, getSuspicionReasons as checkSuspicion, SCORING_CONFIG, type ScoringConfig } from "./scoring";
+import { calculateScore, getSuspicionReasons as checkSuspicion } from "./scoring";
+import { SCORING_CONFIG, type ScoringConfig } from "../../shared/game-config/scoringConfig";
 import { FinishRunDto } from "./http/dto/finish-run.dto";
 import { plainToInstance } from "class-transformer";
 import { validateSync } from "class-validator";
@@ -13,7 +14,9 @@ const valid = (): FinishRunDto => ({
     stageReached: 1, coinsCollected: 10, resourcesCollected: { ore: 2, crystal: 1 } },
 });
 const now = new Date(1_000_000);
-const reasons = (input: FinishRunDto, elapsed = 60_000) => getSuspicionReasons(input, new Date(+now - elapsed), now);
+const stageTwoConfig = { ...SCORING_CONFIG, enemies: { ...SCORING_CONFIG.enemies,
+  sentryTurret: { ...SCORING_CONFIG.enemies.sentryTurret, minStage: 2 } } };
+const reasons = (input: FinishRunDto, elapsed = 60_000) => getSuspicionReasons(input, new Date(+now - elapsed), now, stageTwoConfig);
 
 describe("arcade scoring", () => {
   it.each([
@@ -100,17 +103,13 @@ describe("sentry turret scoring", () => {
     Object.assign(input.summary, { stageReached: 2, enemiesDestroyed: { sentryTurret: count } });
     return input;
   };
-  it("adds enemy points independently of asteroid counts and preserves version 1", () => {
+  it("adds enemy points independently of asteroid counts", () => {
     const input = withEnemies();
     expect(calculateScore(SCORING_CONFIG, input.summary.destroyedByType, 2, input.summary.enemiesDestroyed)).toBe(310);
-    const v1 = { version: 1, asteroidPoints: SCORING_CONFIG.asteroidPoints, stageBonus: 100 };
-    expect(calculateScore(v1, input.summary.destroyedByType, 2)).toBe(210);
-    expect(getSuspicionReasons(input, new Date(+now - 60000), now, v1)).toContain("enemy config");
-    input.summary.enemiesDestroyed = undefined;
-    expect(getSuspicionReasons(input, new Date(+now - 60000), now, v1)).toEqual([]);
+
   });
   it("uses pinned point values and rejects enemy score overflow", () => {
-    const pinned = { ...SCORING_CONFIG, enemyPoints: { sentryTurret: 7 } };
+    const pinned = { ...SCORING_CONFIG, enemyPoints: { ...SCORING_CONFIG.enemyPoints, sentryTurret: 7 } };
     expect(calculateScore(pinned, valid().summary.destroyedByType, 2, { sentryTurret: 2 })).toBe(224);
     expect(() => calculateScore(SCORING_CONFIG, valid().summary.destroyedByType, 2, { sentryTurret: 2_147_483_647 })).toThrow();
   });
@@ -129,7 +128,7 @@ describe("sentry turret scoring", () => {
   });
   it("uses pinned spawn rules rather than the deployed interval", () => {
     const config = { ...SCORING_CONFIG, enemies: { ...SCORING_CONFIG.enemies, sentryTurret: {
-      ...SCORING_CONFIG.enemies.sentryTurret, firstSpawnDelayMs: 4000, spawnEveryMs: 20000,
+      ...SCORING_CONFIG.enemies.sentryTurret, minStage: 2, firstSpawnDelayMs: 4000, spawnEveryMs: 20000,
     } } };
     const input = withEnemies();
     const check = () => getSuspicionReasons(input, new Date(+now - 60000), now, config);
@@ -162,17 +161,13 @@ describe("shield drone scoring", () => {
     Object.assign(input.summary, { stageReached: 3, enemiesDestroyed: { sentryTurret: 0, shieldDrone: count } });
     return input;
   };
-  it("adds pinned drone points independently of turret kills and preserves old formulas", () => {
+  it("adds pinned drone points independently of turret kills", () => {
     const input = withDrones();
     expect(calculateScore(SCORING_CONFIG, input.summary.destroyedByType, 3, input.summary.enemiesDestroyed)).toBe(360);
-    const pinned = { ...SCORING_CONFIG, enemyPoints: { sentryTurret: 100, shieldDrone: 7 } };
+    const pinned = { ...SCORING_CONFIG, enemyPoints: { ...SCORING_CONFIG.enemyPoints, shieldDrone: 7 } };
     expect(calculateScore(pinned, input.summary.destroyedByType, 3, { sentryTurret: 1, shieldDrone: 2 })).toBe(424);
     expect(calculateScore(SCORING_CONFIG, input.summary.destroyedByType, 3, { sentryTurret: 1 })).toBe(410);
-    for (const version of [1, 2]) {
-      const old = { ...SCORING_CONFIG, version };
-      expect(calculateScore(old, input.summary.destroyedByType, 3, input.summary.enemiesDestroyed)).toBe(310);
-      expect(getSuspicionReasons(input, new Date(0), now, old)).toContain("drone config");
-    }
+
   });
   it("checks stage and repeat boundaries without imposing a probabilistic quota", () => {
     const input = withDrones();
@@ -204,10 +199,8 @@ describe("shield drone scoring", () => {
     input.durationMs = 106_000;
     expect(check()).toEqual([]);
   });
-  it("rejects positive counts without drone config or possible spawning", () => {
+  it("rejects positive counts without possible spawning", () => {
     const input = withDrones();
-    const noRule = { ...SCORING_CONFIG, enemies: undefined };
-    expect(getSuspicionReasons(input, new Date(0), now, noRule)).toContain("drone config");
     const impossible = { ...SCORING_CONFIG, enemies: { ...SCORING_CONFIG.enemies,
       shieldDrone: { ...SCORING_CONFIG.enemies.shieldDrone, maxActive: 0 } } };
     expect(getSuspicionReasons(input, new Date(0), now, impossible)).toContain("drone spawn bound");
@@ -229,24 +222,12 @@ describe("shield drone scoring", () => {
   });
 });
 
-describe('server enemy config v4', () => {
-  it.each([2, 3])('finishes a historical version %s snapshot using its own spawn rules', (version) => {
-    const config = { version, asteroidPoints: SCORING_CONFIG.asteroidPoints, stageBonus: 100,
-      enemyPoints: { sentryTurret: 100, shieldDrone: 50 }, enemySpawnRules: {
-        sentryTurret: { minStage: 2, firstSpawnDelayMs: 2000, spawnEveryMs: 15000, maxActive: 1 },
-        shieldDrone: { minStage: 3, maxActive: 1 },
-      } };
-    const input = valid();
-    Object.assign(input, { durationMs: 60000, endedBy: 'death', extractionCount: 0, rewardMultiplier: 1.3 });
-    Object.assign(input.summary, { stageReached: 3, enemiesDestroyed: { sentryTurret: 1, shieldDrone: version === 3 ? 1 : 0 } });
-    expect(getSuspicionReasons(input, new Date(0), now, config)).toEqual([]);
-    expect(calculateScore(config, input.summary.destroyedByType, 3, input.summary.enemiesDestroyed)).toBe(version === 3 ? 460 : 410);
-  });
-  it('uses only the v4 enemy stage, ignoring contradictory historical fields', () => {
+describe('server enemy configuration', () => {
+  it('uses pinned enemy stages', () => {
     const config = { ...SCORING_CONFIG, enemies: { ...SCORING_CONFIG.enemies,
       sentryTurret: { ...SCORING_CONFIG.enemies.sentryTurret, minStage: 1, firstSpawnDelayMs: 0 },
       shieldDrone: { ...SCORING_CONFIG.enemies.shieldDrone, minStage: 1 },
-    }, enemySpawnRules: { sentryTurret: { minStage: 99, firstSpawnDelayMs: 99999, spawnEveryMs: 99999, maxActive: 0 } } };
+    } };
     const input = valid();
     input.summary.enemiesDestroyed = { sentryTurret: 1, shieldDrone: 1 };
     expect(getSuspicionReasons(input, new Date(0), now, config)).toEqual([]);
@@ -263,7 +244,7 @@ describe('server enemy config v4', () => {
   });
 });
 
-describe("Mine Layer scoring v5", () => {
+describe("Mine Layer scoring", () => {
   function mineInput(count = 1, durationMs = 88_000): FinishRunDto {
     const input = valid();
     Object.assign(input, { durationMs, endedBy: "death", extractionCount: 0, rewardMultiplier: 1.45 });
@@ -297,28 +278,17 @@ describe("Mine Layer scoring v5", () => {
     expect(check(beforeStage)).toContain("mine layer spawn bound");
   });
 
-  it.each([1, 2, 3, 4])("rejects positive counts for legacy version %s", (version) => {
-    const input = mineInput();
-    const old = { ...SCORING_CONFIG, version };
-    expect(check(input, old)).toContain("mine layer config");
-    expect(calculateScore(old, input.summary.destroyedByType, 4, input.summary.enemiesDestroyed)).toBe(410);
-    input.summary.enemiesDestroyed!.mineLayer = 0;
-    expect(check(input, old)).toEqual([]);
-  });
-
   it.each([{ spawnChance: 0 }, { maxActive: 0 }])("rejects kills when spawn is disabled %j", (rule) => {
     const config = { ...SCORING_CONFIG, enemies: { ...SCORING_CONFIG.enemies,
       mineLayer: { ...SCORING_CONFIG.enemies.mineLayer, ...rule } } };
     expect(check(mineInput(), config)).toContain("mine layer spawn bound");
   });
 
-  it("uses pinned spawn timing and rejects missing configuration and overflow", () => {
+  it("uses pinned spawn timing and rejects overflow", () => {
     const input = mineInput();
     const slower = { ...SCORING_CONFIG, enemies: { ...SCORING_CONFIG.enemies,
       mineLayer: { ...SCORING_CONFIG.enemies.mineLayer, minStage: 4, firstSpawnDelayMs: 3000 } } };
     expect(check(input, slower)).toContain("mine layer spawn bound");
-    const { mineLayer: _mine, ...enemies } = SCORING_CONFIG.enemies;
-    expect(check(input, { ...SCORING_CONFIG, enemies })).toContain("mine layer config");
     expect(calculateScore.bind(null, SCORING_CONFIG, input.summary.destroyedByType, 4,
       { sentryTurret: 0, mineLayer: 2_147_483_647 })).toThrow("score out of range");
   });

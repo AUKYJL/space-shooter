@@ -2,7 +2,6 @@ import { validateRunConfig, validateRunStart } from "./validateRunConfig"
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import { qk } from '@/shared/api/queryKeys'
-import { ApiError } from '@/shared/api/client'
 import type { MeResponse } from '@/modules/profile/api/profileApi'
 import { finishRun, getRunConfig, getRunHistory, startRun } from './runsApi'
 
@@ -26,24 +25,11 @@ export function useRunHistoryQuery(limit?: number) {
 }
 
 export function useStartRunMutation() {
-  const qc = useQueryClient()
   return useMutation({
     mutationFn: async ({ weaponId }: { weaponId: string }) => {
-      let config = await qc.fetchQuery(configOptions)
-      validateRunConfig(config)
-      try {
-        const result = await startRun({ weaponId, scoringConfigVersion: config.version })
-        validateRunStart(result)
-        return structuredClone({ ...result, scoringConfig: result.snapshot.scoringConfig })
-      } catch (error) {
-        if (!(error instanceof ApiError) || error.status !== 409) throw error
-        await qc.invalidateQueries({ queryKey: qk.runConfig(), refetchType: 'none' })
-        config = await qc.fetchQuery(configOptions)
-        validateRunConfig(config)
-        const result = await startRun({ weaponId, scoringConfigVersion: config.version })
-        validateRunStart(result)
-        return structuredClone({ ...result, scoringConfig: result.snapshot.scoringConfig })
-      }
+      const result = await startRun({ weaponId })
+      validateRunStart(result)
+      return structuredClone({ ...result, scoringConfig: result.snapshot.scoringConfig })
     },
   })
 }

@@ -28,8 +28,7 @@ export class MineLayer implements Enemy {
     this.direction = fromLeft ? 1 : -1
     this.position.x = fromLeft ? -this.radius : this.width + this.radius
     const cfg = this.config
-    const heightRatio = 'heightRatio' in cfg ? cfg.heightRatio
-      : cfg.minHeightRatio + (cfg.maxHeightRatio - cfg.minHeightRatio) * heightRoll
+    const heightRatio = cfg.minHeightRatio + (cfg.maxHeightRatio - cfg.minHeightRatio) * heightRoll
     this.position.y = viewport.height * heightRatio
     this.hp = this.maxHp = Math.max(1, Math.ceil(this.config.hp * stageMultiplier))
     this.state = 'entering'

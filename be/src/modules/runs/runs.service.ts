@@ -1,6 +1,5 @@
-import { RUN_CONFIG, isGameplayConfig, isScoringConfig, type GameplayConfig, type RunConfig } from "./config/runConfig";
+import { RUN_CONFIG, isGameplayConfig, isScoringConfig, type GameplayConfig, type RunConfig } from "../../shared/game-config/runConfig";
 import { resolveWeaponTuning, type WeaponTuning } from "../../shared/game-config/weaponsConfig";
-import { LEGACY_RUN_RULES } from "./config/legacyRunRules";
 import {
   BadRequestException,
   ConflictException,
@@ -14,7 +13,8 @@ import { PrismaService } from "../../infra/prisma/prisma.service";
 import { type WeaponId } from "../../shared/ids";
 import type { Prisma } from "@prisma/client";
 import { FinishRunDto } from "./http/dto/finish-run.dto";
-import { calculateScore, getSuspicionReasons, type ScoringConfig } from "./scoring";
+import { calculateScore, getSuspicionReasons } from "./scoring";
+import type { ScoringConfig } from "../../shared/game-config/scoringConfig";
 import { type JsonValue } from "@prisma/client/runtime/library";
 
 type RunSnapshot = {
@@ -45,11 +45,8 @@ export class RunsService {
     return structuredClone(RUN_CONFIG);
   }
 
-  async startRun(userId: string, weaponId: WeaponId, scoringConfigVersion: number) {
+  async startRun(userId: string, weaponId: WeaponId) {
     const { gameplay: gameplayConfig, ...scoringConfig } = this.getConfig();
-    if (scoringConfigVersion !== scoringConfig.version) {
-      throw new ConflictException("Scoring config changed; reload /runs/config");
-    }
     const owned = await this.prisma.userWeapon.findUnique({
       where: { userId_weaponId: { userId, weaponId } },
       select: { unlocked: true },
@@ -106,7 +103,7 @@ export class RunsService {
       select: { id: true },
     });
 
-    return { runId: run.id, seed, snapshot, scoringConfigVersion: scoringConfig.version };
+    return { runId: run.id, seed, snapshot };
   }
 
   async finishRun(userId: string, input: FinishRunDto) {
@@ -123,33 +120,37 @@ export class RunsService {
       };
       if (run.status !== "started" || run.finishedAt) return savedResponse();
 
-      const snapshot = run.snapshotJson as unknown as Partial<RunSnapshot>;
-      const config = snapshot.scoringConfig;
-      const legacy = !!config && Number.isInteger(config.version) && config.version >= 1 && config.version <= 6;
-      const modern = !legacy;
-      const tuning = snapshot.weaponTuning;
-      const validModern = isScoringConfig(config) && isGameplayConfig(snapshot.gameplayConfig) && tuning
-        && [tuning.bulletDamage, tuning.chargedDamage, tuning.fireCooldownMs, snapshot.damage, snapshot.fireRate, snapshot.maxHp]
+      const rawSnapshot = run.snapshotJson;
+      const snapshot = rawSnapshot && typeof rawSnapshot === "object" && !Array.isArray(rawSnapshot)
+        ? rawSnapshot as unknown as Partial<RunSnapshot> : undefined;
+      const config = snapshot?.scoringConfig;
+      const tuning = snapshot?.weaponTuning;
+      const validSnapshot = isScoringConfig(config) && isGameplayConfig(snapshot?.gameplayConfig) && tuning
+        && [tuning.bulletDamage, tuning.chargedDamage, tuning.fireCooldownMs, snapshot?.damage, snapshot?.fireRate, snapshot?.maxHp]
           .every((value) => typeof value === "number" && Number.isFinite(value) && value > 0)
-        && !!snapshot.weaponId && Object.prototype.hasOwnProperty.call(snapshot.gameplayConfig.weapons.variants, snapshot.weaponId);
+        && !!snapshot?.weaponId && Object.prototype.hasOwnProperty.call(snapshot.gameplayConfig.weapons.variants, snapshot.weaponId);
       const now = new Date();
-      const reasons = !config ? ["missing scoring snapshot"]
-        : modern && !validModern ? ["invalid gameplay snapshot"]
-        : getSuspicionReasons(input, run.startedAt, now, config, modern ? snapshot.gameplayConfig : undefined);
+      let reasons: string[] = ["invalid run snapshot"];
+      let score: number | null = null;
+      let grantedRewards: GrantedRewards = { coins: 0, resources: { ore: 0, crystal: 0 } };
+      if (validSnapshot) {
+        const rules = snapshot!.gameplayConfig!;
+        reasons = getSuspicionReasons(input, run.startedAt, now, config!, rules);
+        score = calculateScore(config!, input.summary.destroyedByType, input.summary.stageReached, input.summary.enemiesDestroyed);
+        if (reasons.length === 0 && input.endedBy === "extract") {
+          const multiplier = 1 + (input.summary.stageReached - 1) * rules.difficulty.stageMultiplierStep;
+          const caps = rules.loot.rewardCaps;
+          grantedRewards = {
+            coins: Math.min(Math.floor(input.summary.coinsCollected * multiplier), caps.coins),
+            resources: {
+              ore: Math.min(Math.floor(input.summary.resourcesCollected.ore * multiplier), caps.ore),
+              crystal: Math.min(Math.floor(input.summary.resourcesCollected.crystal * multiplier), caps.crystal),
+            },
+          };
+        }
+      }
       const accepted = reasons.length === 0;
-      const score = config && (legacy || validModern)
-        ? calculateScore(config, input.summary.destroyedByType, input.summary.stageReached, input.summary.enemiesDestroyed) : null;
-      const rules = modern && validModern ? snapshot.gameplayConfig! : LEGACY_RUN_RULES;
-      const multiplier = 1 + (input.summary.stageReached - 1) * rules.difficulty.stageMultiplierStep;
-      const caps = rules.loot.rewardCaps;
       const grantLoot = accepted && input.endedBy === "extract";
-      const grantedRewards: GrantedRewards = {
-        coins: grantLoot ? Math.min(Math.floor(input.summary.coinsCollected * multiplier), caps.coins) : 0,
-        resources: {
-          ore: grantLoot ? Math.min(Math.floor(input.summary.resourcesCollected.ore * multiplier), caps.ore) : 0,
-          crystal: grantLoot ? Math.min(Math.floor(input.summary.resourcesCollected.crystal * multiplier), caps.crystal) : 0,
-        },
-      };
 
       // The conditional UPDATE locks the row. Concurrent losers wait for the winner's
       // commit and then read its canonical result under PostgreSQL READ COMMITTED.

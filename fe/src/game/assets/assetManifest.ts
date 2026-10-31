@@ -4,9 +4,10 @@ import { ASTEROID_ASSET_URLS } from './asteroidAssetUrls'
 import { LOOT_ASSET_URLS } from './lootAssetUrls'
 import { EXTRACTION_ASSET_URLS } from './extractionAssetUrls'
 import { ENEMY_ASSET_URLS } from './enemyAssetUrls'
+import { ZONE_ASSET_URLS } from './zoneAssetUrls'
 import { AUDIO_CATALOG } from '@/game/audio/audioCatalog'
 
-export const RUN_BUNDLES = ['ship', 'asteroids', 'loot', 'extraction', 'enemies'] as const
+export const RUN_BUNDLES = ['ship', 'asteroids', 'loot', 'extraction', 'enemies', 'zones'] as const
 export const BUNDLE_URLS = {
   menu: [LOOT_ASSET_URLS.coins, LOOT_ASSET_URLS.crystal],
   ship: [SHIP_ASSET_URLS.ship, ...SHIP_ASSET_URLS.flameFrames],
@@ -14,6 +15,7 @@ export const BUNDLE_URLS = {
   loot: Object.values(LOOT_ASSET_URLS),
   extraction: Object.values(EXTRACTION_ASSET_URLS),
   enemies: Object.values(ENEMY_ASSET_URLS),
+  zones: Object.values(ZONE_ASSET_URLS),
   sfx: Object.values(AUDIO_CATALOG.sfx),
 } satisfies Record<string, readonly string[]>
 

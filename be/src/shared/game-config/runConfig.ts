@@ -1,12 +1,12 @@
-import { SCORING_CONFIG, type ScoringConfig } from "../scoring";
-import { ASTEROIDS_CONFIG } from "../../../shared/game-config/asteroidsConfig";
-import { SPAWN_CONFIG } from "../../../shared/game-config/spawnConfig";
-import { WEAPONS_CONFIG } from "../../../shared/game-config/weaponsConfig";
-import { DIFFICULTY_CONFIG } from "../../../shared/game-config/difficultyConfig";
-import { EXTRACTION_CONFIG } from "../../../shared/game-config/extractionConfig";
-import { ZONES_CONFIG } from "../../../shared/game-config/zonesConfig";
-import { LOOT_CONFIG } from "../../../shared/game-config/lootConfig";
-import { PLAYER_CONFIG } from "../../../shared/game-config/playerConfig";
+import { SCORING_CONFIG, type ScoringConfig } from "./scoringConfig";
+import { ASTEROIDS_CONFIG } from "./asteroidsConfig";
+import { SPAWN_CONFIG } from "./spawnConfig";
+import { WEAPONS_CONFIG } from "./weaponsConfig";
+import { DIFFICULTY_CONFIG } from "./difficultyConfig";
+import { EXTRACTION_CONFIG } from "./extractionConfig";
+import { ZONES_CONFIG } from "./zonesConfig";
+import { LOOT_CONFIG } from "./lootConfig";
+import { PLAYER_CONFIG } from "./playerConfig";
 export const GAMEPLAY_CONFIG = Object.freeze({
   player: PLAYER_CONFIG,
   weapons: WEAPONS_CONFIG,
@@ -32,8 +32,7 @@ function matchesConfig(actual: unknown, template: unknown): boolean {
 export function isScoringConfig(value: unknown): value is typeof SCORING_CONFIG {
   if (!matchesConfig(value, SCORING_CONFIG)) return false;
   const config = value as typeof SCORING_CONFIG;
-  return Number.isInteger(config.version) && config.version >= 7
-    && Object.values(config.enemies).every((enemy) => enemy.minStage >= 1 && enemy.spawnChance <= 1)
+  return Object.values(config.enemies).every((enemy) => enemy.minStage >= 1 && enemy.spawnChance <= 1)
     && config.enemies.sentryTurret.spawnEveryMs > 0 && config.enemies.mineLayer.spawnEveryMs > 0;
 }
 

@@ -25,7 +25,7 @@ describe('shared assets', () => {
     await ensureRunAssets()
     await ensureRunAssets()
     expect(pixi.init).toHaveBeenCalledTimes(1)
-    expect(pixi.loadBundle.mock.calls.map(([name]) => name)).toEqual(['ship', 'asteroids', 'loot', 'extraction', 'enemies'])
+    expect(pixi.loadBundle.mock.calls.map(([name]) => name)).toEqual(['ship', 'asteroids', 'loot', 'extraction', 'enemies', 'zones'])
   })
 
   it('shares enemy preloads, retries a failed enemy bundle, and keeps it ready across runs', async () => {
@@ -60,7 +60,7 @@ describe('shared assets', () => {
     expect(getRunAssetState(useAssetsStore.getState().bundles)).toMatchObject({ status: 'error', error: failed })
     fail = false
     await ensureRunAssets()
-    expect(pixi.loadBundle.mock.calls.map(([name]) => name)).toEqual(['ship', 'asteroids', 'loot', 'extraction', 'enemies', 'loot'])
+    expect(pixi.loadBundle.mock.calls.map(([name]) => name)).toEqual(['ship', 'asteroids', 'loot', 'extraction', 'enemies', 'zones', 'loot'])
     expect(getRunAssetState(useAssetsStore.getState().bundles)).toMatchObject({ status: 'ready', progress: 1 })
   })
 
@@ -70,7 +70,7 @@ describe('shared assets', () => {
     await ensureBundle('menu')
     expect(pixi.loadBundle.mock.calls.map(([name]) => name)).toEqual(['menu'])
     expect(BUNDLE_URLS.menu).toEqual(BUNDLE_URLS.loot)
-    expect(assetManifest.bundles).toHaveLength(7)
+    expect(assetManifest.bundles).toHaveLength(8)
     expect(assetManifest.bundles.flatMap((bundle) => bundle.assets)).not.toEqual(expect.arrayContaining([expect.objectContaining({ src: expect.stringContaining('/music/') })]))
     expect(pixi.loadBundle).toHaveBeenCalledTimes(1)
   })

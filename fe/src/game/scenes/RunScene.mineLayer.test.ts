@@ -10,8 +10,8 @@ import type { DifficultySystem } from '@/game/systems/DifficultySystem'
 import type { PlayerShip } from '@/game/entities/PlayerShip'
 import { ENEMY_CONFIG } from '@/test/enemyConfig'
 
-function setup(version = 7) {
-  const config = { version, asteroidPoints: { normal: 10, fast: 20, big: 30, armored: 50 }, stageBonus: 100,
+function setup() {
+  const config = { asteroidPoints: { normal: 10, fast: 20, big: 30, armored: 50 }, stageBonus: 100,
     enemyPoints: { sentryTurret: 100, shieldDrone: 50, mineLayer: 150 },
     enemies: { ...ENEMY_CONFIG, sentryTurret: { ...ENEMY_CONFIG.sentryTurret, spawnChance: 0 } } }
   const events = new EventBus<RunBridgeEventMap>()
@@ -71,7 +71,4 @@ describe('RunScene MineLayer', () => {
     expect(mine.visible).toBe(false)
   })
 
-  it('rejects an older snapshot even if its enemy config is present', () => {
-    expect(() => setup(4)).toThrow('Unsupported run configuration')
-  })
 })

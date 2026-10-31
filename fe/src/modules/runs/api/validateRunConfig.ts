@@ -85,7 +85,6 @@ export function validateGameplayConfig(value: unknown): asserts value is Gamepla
 
 function validateScoring(value: unknown): asserts value is ScoringConfig {
   const c = object(value, 'scoring')
-  if (c.version !== 7) invalid('unsupported version')
   fields(c.asteroidPoints, 'asteroidPoints', '', asteroidTypes.join(' '))
   number(c.stageBonus, 'stageBonus')
   fields(c.enemyPoints, 'enemyPoints', '', 'sentryTurret shieldDrone mineLayer')
@@ -112,7 +111,6 @@ export function validateRunStart(value: unknown): asserts value is StartRunRespo
   const result = object(value, 'start')
   const snapshot = object(result.snapshot, 'snapshot')
   validateScoring(snapshot.scoringConfig)
-  if (result.scoringConfigVersion !== (snapshot.scoringConfig as ScoringConfig).version) invalid('snapshot version')
   validateGameplayConfig(snapshot.gameplayConfig)
   if (!weaponIds.includes(snapshot.weaponId as typeof weaponIds[number])) invalid('weaponId')
   fields(snapshot, 'snapshot', 'damage fireRate maxHp')

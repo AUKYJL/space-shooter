@@ -6,20 +6,18 @@ import { endpoints } from '@/shared/api/endpoints'
 export type EnemiesDestroyed = { sentryTurret: number; shieldDrone?: number; mineLayer?: number }
 
 export type ScoringConfig = {
-  version: number
-  enemies?: EnemyConfigs
+  enemies: EnemyConfigs
   asteroidPoints: { normal: number; fast: number; big: number; armored: number }
   stageBonus: number
-  enemyPoints?: { sentryTurret: number; shieldDrone?: number; mineLayer?: number }
+  enemyPoints: { sentryTurret: number; shieldDrone: number; mineLayer: number }
 }
 
 export type RunConfig = ScoringConfig & { gameplay: GameplayConfig }
 
-export type StartRunRequest = { weaponId: string; scoringConfigVersion: number }
+export type StartRunRequest = { weaponId: string }
 export type StartRunResponse = {
   runId: string
   seed: number
-  scoringConfigVersion: number
   snapshot: { weaponId: string; damage: number; fireRate: number; maxHp: number; scoringConfig: ScoringConfig; gameplayConfig: GameplayConfig; weaponTuning: WeaponTuning }
 }
 

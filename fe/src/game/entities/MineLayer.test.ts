@@ -15,13 +15,11 @@ describe('MineLayer', () => {
     }
   })
 
-  it('supports equal bounds and fixed-height historical v5 snapshots', () => {
+  it('supports equal height bounds', () => {
     const fixed = new MineLayer({ ...cfg, minHeightRatio: 0.3, maxHeightRatio: 0.3 })
     fixed.spawn(viewport, false, 1, 0.8)
     expect(fixed.position.y).toBe(240)
-    const legacy = new MineLayer({ ...cfg, heightRatio: 0.25 })
-    legacy.spawn(viewport, true, 1, 0.8)
-    expect(legacy.position.y).toBe(200)
+
   })
 
   it.each([true, false])('follows the mirrored route and drops four spaced mines (left=%s)', (left) => {

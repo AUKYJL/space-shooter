@@ -17,8 +17,9 @@ vi.mock('@/game/assets/loadShipAssets', () => ({ loadShipAssets: async () => ({}
 vi.mock('@/game/assets/loadAsteroidAssets', () => ({ loadAsteroidAssets: async () => ({}) }))
 vi.mock('@/game/assets/loadLootAssets', () => ({ loadLootAssets: async () => ({}) }))
 vi.mock('@/game/assets/loadExtractionAssets', () => ({ loadExtractionAssets: async () => ({ base: {} }) }))
+vi.mock('@/game/assets/loadZoneAssets', () => ({ loadZoneAssets: async () => ({ heal: 'health', danger: 'skull' }) }))
 import { GameCanvas } from './GameCanvas'
-const init = { runId: 'one', seed: 1, scoringConfigVersion: 7, scoringConfig: RUN_CONFIG,
+const init = { runId: 'one', seed: 1, scoringConfig: RUN_CONFIG,
   snapshot: { weaponId: 'basic_laser', damage: 1, fireRate: 2, maxHp: 5, scoringConfig: RUN_CONFIG, gameplayConfig: GAMEPLAY_CONFIG, weaponTuning: WEAPON_TUNING } }
 function game() { return { destroy: vi.fn(), pause: vi.fn(), resume: vi.fn(), setScene: vi.fn(), getCanvas: vi.fn(), getViewportSize: vi.fn() } }
 beforeEach(() => { vi.resetAllMocks(); mocks.ensure.mockResolvedValue(undefined); mocks.create.mockResolvedValue(game()) })
@@ -35,7 +36,7 @@ describe('GameCanvas lifecycle', () => {
     await waitFor(() => expect(onReady).toHaveBeenCalledOnce())
     expect(mocks.create).toHaveBeenCalledOnce()
     expect(mocks.scene).toHaveBeenCalledOnce()
-    expect(mocks.scene).toHaveBeenCalledWith(expect.objectContaining({ enemyAssets: ENEMY_ASSETS }))
+    expect(mocks.scene).toHaveBeenCalledWith(expect.objectContaining({ enemyAssets: ENEMY_ASSETS, zoneAssets: { heal: 'health', danger: 'skull' } }))
   })
   it('ignores completion after leaving during asset loading', async () => {
     let finish!: () => void

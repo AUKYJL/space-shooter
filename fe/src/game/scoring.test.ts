@@ -26,9 +26,3 @@ it('uses pinned enemy points and treats omitted counters as zero', () => {
   expect(calculateScore({ ...config, enemyPoints: { ...config.enemyPoints, sentryTurret: 7 } }, destroyed, 2, { sentryTurret: 2 })).toBe(224)
   expect(calculateScore(config, destroyed, 3, { sentryTurret: 1, shieldDrone: 2, mineLayer: 2 })).toBe(810)
 })
-
-it('rejects missing points and unsupported configs instead of substituting zero', () => {
-  const destroyed = { normal: 0, fast: 0, big: 0, armored: 0 }
-  expect(() => calculateScore({ ...config, version: 6 }, destroyed, 1)).toThrow('Invalid scoring configuration')
-  expect(() => calculateScore({ ...config, enemyPoints: undefined }, destroyed, 1)).toThrow('Invalid scoring configuration')
-})

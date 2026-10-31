@@ -6,7 +6,7 @@ import { RunScene } from './RunScene'
 import { EventBus } from '@/game/core/EventBus'
 import type { RunBridgeEventMap, RunHudState, RunSummary } from '@/game/ui-bridge/gameToReact'
 
-const makeConfig = () => ({ ...RUN_CONFIG, version: 7, asteroidPoints: { normal: 10, fast: 20, big: 30, armored: 50 }, stageBonus: 100 })
+const makeConfig = () => ({ ...RUN_CONFIG, asteroidPoints: { normal: 10, fast: 20, big: 30, armored: 50 }, stageBonus: 100 })
 function setup(config = makeConfig()) {
   const events = new EventBus<RunBridgeEventMap>()
   const scene = new RunScene({ enemyAssets: ENEMY_ASSETS, gameplayConfig: GAMEPLAY_CONFIG, weaponId: 'basic_laser', tuning: SCENE_TUNING, canvas: document.createElement('canvas'), getViewportSize: () => ({ width: 400, height: 800 }), events, scoringConfig: config })

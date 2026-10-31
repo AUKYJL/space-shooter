@@ -1,6 +1,6 @@
 export const DIFFICULTY_CONFIG = Object.freeze({
   rampMs: 4 * 60 * 1000, stageMultiplierStep: 0.15, compositionStageSpan: 6,
-  spawnEveryMs: { start: 420, end: 230 }, maxActive: { start: 26, end: 44 },
+  spawnEveryMs: { start: 720, end: 430 }, maxActive: { start: 15, end: 35 },
   maxActiveStageMultiplier: 1.35,
   composition: {
     normal: { start: 0.7, end: 0.45, stageEnd: 0.72 },
