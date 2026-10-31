@@ -6,6 +6,7 @@ import { GameApp } from '@/game/core/GameApp'
 import { RunScene } from '@/game/scenes/RunScene'
 import type { EventBus } from '@/game/core/EventBus'
 import type { RunBridgeEventMap } from '@/game/ui-bridge/gameToReact'
+import { loadEnemyAssets } from '@/game/assets/loadEnemyAssets'
 import { loadShipAssets } from '@/game/assets/loadShipAssets'
 import { loadAsteroidAssets } from '@/game/assets/loadAsteroidAssets'
 import { loadLootAssets } from '@/game/assets/loadLootAssets'
@@ -39,8 +40,8 @@ export function GameCanvas(props: {
     void (async () => {
       await ensureRunAssets()
       if (cancelled) return
-      const [shipAssets, asteroidAssets, lootAssets, extractionAssets] = await Promise.all([
-        loadShipAssets(), loadAsteroidAssets(), loadLootAssets(), loadExtractionAssets(),
+      const [shipAssets, asteroidAssets, lootAssets, extractionAssets, enemyAssets] = await Promise.all([
+        loadShipAssets(), loadAsteroidAssets(), loadLootAssets(), loadExtractionAssets(), loadEnemyAssets(),
       ])
       if (cancelled) return
       const created = await GameApp.create(mount, { backgroundAlpha: 0 })
@@ -58,6 +59,7 @@ export function GameCanvas(props: {
           shipVisuals: shipAssets,
           asteroidVisuals: asteroidAssets,
           lootAssets,
+          enemyAssets,
           extractionBaseTexture: extractionAssets.base,
           tuning,
           weaponId: init.snapshot.weaponId as WeaponId,

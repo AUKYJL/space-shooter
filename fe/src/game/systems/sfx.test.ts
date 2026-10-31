@@ -1,3 +1,4 @@
+import { ENEMY_ASSETS } from '@/test/enemyAssets'
 import { Container } from 'pixi.js'
 import { describe, expect, it, vi } from 'vitest'
 import { GAMEPLAY_CONFIG, RUN_CONFIG, SCENE_TUNING, BULLET_OPTIONS } from '@/test/runConfig'
@@ -82,7 +83,7 @@ describe('gameplay SFX transitions', () => {
 
   it.each(['normal', 'fast', 'big', 'armored'] as const)('distinguishes asteroid hit and destruction (%s), ignoring misses', (type) => {
     const onSfx = vi.fn()
-    const system = new SpawnSystem(GAMEPLAY_CONFIG, { container: new Container(), getViewportSize: viewport,
+    const system = new SpawnSystem(GAMEPLAY_CONFIG, { enemyAssets: ENEMY_ASSETS, container: new Container(), getViewportSize: viewport,
       getPlayerPosition: () => ({ x: 200, y: 700 }), enemies: ENEMY_CONFIG, rng: () => 0.5, onSfx })
     system.setTuning({ maxActive: 1, spawnEveryMs: 100000, typeWeights: { normal: 0, fast: 0, big: 0, armored: 0, [type]: 1 }, stageMultiplier: 1 })
     system.update(0)
@@ -108,7 +109,7 @@ describe('gameplay SFX transitions', () => {
   it('signals the existing stage transition once without advancing while paused', () => {
     const play = vi.spyOn(audioManager, 'playSfx').mockImplementation(() => {})
     const events = new EventBus<RunBridgeEventMap>()
-    const scene = new RunScene({ gameplayConfig: GAMEPLAY_CONFIG, scoringConfig: RUN_CONFIG, weaponId: 'basic_laser', tuning: SCENE_TUNING,
+    const scene = new RunScene({ enemyAssets: ENEMY_ASSETS, gameplayConfig: GAMEPLAY_CONFIG, scoringConfig: RUN_CONFIG, weaponId: 'basic_laser', tuning: SCENE_TUNING,
       events, canvas: document.createElement('canvas'), getViewportSize: viewport })
     scene.mount(new Container())
     const extraction = (scene as unknown as { extraction: ExtractionSystem }).extraction

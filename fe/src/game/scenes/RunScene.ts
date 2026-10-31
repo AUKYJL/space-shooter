@@ -15,6 +15,7 @@ import { ChargeSystem } from '@/game/systems/ChargeSystem'
 import { DifficultySystem } from '@/game/systems/DifficultySystem'
 import { ExtractionSystem } from '@/game/systems/ExtractionSystem'
 import { CameraSystem } from '@/game/systems/CameraSystem'
+import type { EnemyAssets } from '@/game/assets/loadEnemyAssets'
 import type { AsteroidAssets } from '@/game/assets/loadAsteroidAssets'
 import type { LootAssets } from '@/game/assets/loadLootAssets'
 import type { RunBridgeEventMap, RunSummary } from '@/game/ui-bridge/gameToReact'
@@ -62,6 +63,7 @@ export class RunScene implements Scene {
     events: EventBus<RunBridgeEventMap>
     weaponId: WeaponId
     shipVisuals?: PlayerShipVisuals
+    enemyAssets: EnemyAssets
     asteroidVisuals?: AsteroidAssets
     lootAssets?: LootAssets
     extractionBaseTexture?: Texture
@@ -103,6 +105,7 @@ export class RunScene implements Scene {
     this.spawns = new SpawnSystem(config, {
       onSfx,
       enemies: this.scoringConfig.enemies!,
+      enemyAssets: options.enemyAssets,
       onEnemyDestroyed: (enemy) => { this.enemiesDestroyed[enemy.type] = (this.enemiesDestroyed[enemy.type] ?? 0) + 1 },
       container: this.asteroidsContainer,
       getViewportSize: options.getViewportSize,

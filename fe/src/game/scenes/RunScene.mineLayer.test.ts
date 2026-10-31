@@ -1,3 +1,4 @@
+import { ENEMY_ASSETS } from '@/test/enemyAssets'
 import { GAMEPLAY_CONFIG, SCENE_TUNING } from '@/test/runConfig'
 import { Container } from 'pixi.js'
 import { describe, expect, it, vi } from 'vitest'
@@ -14,7 +15,7 @@ function setup(version = 7) {
     enemyPoints: { sentryTurret: 100, shieldDrone: 50, mineLayer: 150 },
     enemies: { ...ENEMY_CONFIG, sentryTurret: { ...ENEMY_CONFIG.sentryTurret, spawnChance: 0 } } }
   const events = new EventBus<RunBridgeEventMap>()
-  const scene = new RunScene({ gameplayConfig: GAMEPLAY_CONFIG, weaponId: 'basic_laser', tuning: SCENE_TUNING, canvas: document.createElement('canvas'), events, scoringConfig: config,
+  const scene = new RunScene({ enemyAssets: ENEMY_ASSETS, gameplayConfig: GAMEPLAY_CONFIG, weaponId: 'basic_laser', tuning: SCENE_TUNING, canvas: document.createElement('canvas'), events, scoringConfig: config,
     getViewportSize: () => ({ width: 400, height: 800 }) })
   scene.mount(new Container())
   const state = scene as unknown as { spawns: SpawnSystem; difficulty: DifficultySystem; player: PlayerShip }

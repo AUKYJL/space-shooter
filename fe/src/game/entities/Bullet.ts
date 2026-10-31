@@ -1,4 +1,4 @@
-import type { Container } from 'pixi.js'
+import type { Container, Texture } from 'pixi.js'
 import { BulletView } from '@/game/views/BulletView'
 
 export class Bullet {
@@ -13,14 +13,18 @@ export class Bullet {
   private traveledPx = 0
   private hitTargets: WeakSet<object> = new WeakSet()
 
-  private visual = new BulletView()
+  private visual: BulletView
   private color = 0xf8f8f2
   private vx = 0
   private vy = 0
   private ageMs = 0
   private lifetimeMs = 0
 
-  constructor() {
+  private readonly texture?: Texture
+
+  constructor(texture?: Texture) {
+    this.texture = texture
+    this.visual = new BulletView(texture)
     this.view = this.visual.view
     this.redraw()
   }
@@ -64,6 +68,7 @@ export class Bullet {
     const dy = options.directionY / len
     this.vx = dx * options.speed
     this.vy = dy * options.speed
+    if (this.texture) this.view.rotation = Math.atan2(dy, dx) + Math.PI / 2
 
     this.view.position.set(options.x, options.y)
     this.view.visible = true

@@ -16,6 +16,7 @@ import type { EnemyConfigs } from '@/game/core/enemyConfig'
 
 import type { Asteroid, AsteroidType } from '@/game/entities/Asteroid'
 import { Asteroid as AsteroidEntity } from '@/game/entities/Asteroid'
+import type { EnemyAssets } from '@/game/assets/loadEnemyAssets'
 import type { AsteroidAssets } from '@/game/assets/loadAsteroidAssets'
 import type { DangerZone } from '@/game/entities/DangerZone'
 import { DangerZone as DangerZoneEntity } from '@/game/entities/DangerZone'
@@ -40,6 +41,7 @@ export class SpawnSystem {
   private getViewportSize: () => { width: number; height: number }
   private getPlayerPosition: () => { x: number; y: number }
   private onAsteroidDestroyed?: (asteroid: Asteroid) => void
+  private enemyAssets: EnemyAssets
   private asteroidVisuals?: AsteroidAssets
   private zonesContainer: Container
   private rng: () => number
@@ -92,6 +94,7 @@ export class SpawnSystem {
     getViewportSize: () => { width: number; height: number }
     getPlayerPosition: () => { x: number; y: number }
     onAsteroidDestroyed?: (asteroid: Asteroid) => void
+    enemyAssets: EnemyAssets
     asteroidVisuals?: AsteroidAssets
     asteroidVisualTuning?: AsteroidVisualTuning
     rng?: () => number
@@ -115,6 +118,7 @@ export class SpawnSystem {
     this.getViewportSize = options.getViewportSize
     this.getPlayerPosition = options.getPlayerPosition
     this.onAsteroidDestroyed = options.onAsteroidDestroyed
+    this.enemyAssets = options.enemyAssets
     this.asteroidVisuals = options.asteroidVisuals
     this.rng = options.rng ?? Math.random
     if (options.asteroidVisualTuning) this.setAsteroidVisualTuning(options.asteroidVisualTuning)
@@ -243,7 +247,7 @@ export class SpawnSystem {
     const x = margin + this.rng() * Math.max(0, viewport.width - margin * 2)
     const stopY = Math.min(viewport.height / 2, Math.max(turretConfig.radius, viewport.height * turretConfig.stopHeightRatio))
     const enemy = this.enemyPool.pop() ?? new SentryTurret(turretConfig)
-    if (!this.enemyViews.has(enemy)) this.enemyViews.set(enemy, new SentryTurretView(turretConfig, this.enemyConfig!.shieldDrone))
+    if (!this.enemyViews.has(enemy)) this.enemyViews.set(enemy, new SentryTurretView(turretConfig, this.enemyConfig!.shieldDrone, this.enemyAssets))
     enemy.spawn(x, stopY, this.enemyStageMultiplier)
     this.onSfx?.('turret_deploy')
     const visual = this.enemyViews.get(enemy)!
@@ -255,7 +259,7 @@ export class SpawnSystem {
       && this.enemies.filter((item) => item.type === 'shieldDrone').length < droneRule.maxActive
       && this.rng() < droneRule.spawnChance) {
       const drone = this.dronePool.pop() ?? new ShieldDrone(droneRule)
-      if (!this.droneViews.has(drone)) this.droneViews.set(drone, new ShieldDroneView(droneRule))
+      if (!this.droneViews.has(drone)) this.droneViews.set(drone, new ShieldDroneView(droneRule, this.enemyAssets.shieldDrone))
       drone.spawn(enemy, this.enemyStageMultiplier, viewport)
       const droneVisual = this.droneViews.get(drone)!
       droneVisual.sync(drone)
@@ -279,7 +283,7 @@ export class SpawnSystem {
     this.mineLayerSpawnRemainingMs = cfg.spawnEveryMs
     if (this.rng() >= cfg.spawnChance) return
     const enemy = this.mineLayerPool.pop() ?? new MineLayer(cfg)
-    if (!this.mineLayerViews.has(enemy)) this.mineLayerViews.set(enemy, new MineLayerView(cfg))
+    if (!this.mineLayerViews.has(enemy)) this.mineLayerViews.set(enemy, new MineLayerView(cfg, this.enemyAssets.mineLayer))
     enemy.spawn(viewport, this.rng() < this.config.spawn.mineLayerLeftChance, this.enemyStageMultiplier, this.rng())
     const visual = this.mineLayerViews.get(enemy)!
     visual.sync(enemy)
@@ -291,7 +295,7 @@ export class SpawnSystem {
     const cfg = this.enemyConfig!.mineLayer!.mine
     if (this.mines.length >= cfg.maxActive) return
     const mine = this.minePool.pop() ?? new Mine(cfg)
-    if (!this.mineViews.has(mine)) this.mineViews.set(mine, new MineView(cfg))
+    if (!this.mineViews.has(mine)) this.mineViews.set(mine, new MineView(cfg, this.enemyAssets))
     mine.spawn(position)
     this.onSfx?.('mine_drop')
     const visual = this.mineViews.get(mine)!
@@ -304,7 +308,7 @@ export class SpawnSystem {
     const cfg = enemy.config.bullet
     if (this.enemyBullets.length >= cfg.maxActive) return
     this.onSfx?.('turret_fire')
-    const bullet = this.enemyBulletPool.pop() ?? new Bullet()
+    const bullet = this.enemyBulletPool.pop() ?? new Bullet(this.enemyAssets.projectile)
     bullet.spawn({ x: enemy.position.x, y: enemy.position.y,
       directionX: direction.x, directionY: direction.y,
       speed: cfg.speed, radius: cfg.radius, damage: cfg.damage,

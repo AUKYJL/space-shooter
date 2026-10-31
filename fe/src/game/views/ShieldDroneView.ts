@@ -1,13 +1,19 @@
-import { Container, Graphics } from 'pixi.js'
+import { Container, Graphics, Sprite, type Texture } from 'pixi.js'
 import type { ShieldDrone } from '@/game/entities/ShieldDrone'
 import type { ShieldDroneConfig } from '@/game/core/enemyConfig'
 
 export class ShieldDroneView {
   readonly view = new Container()
 
-  constructor(cfg: ShieldDroneConfig) {
-    this.view.addChild(new Graphics().poly([0, -cfg.radius, cfg.radius, 0, 0, cfg.radius, -cfg.radius, 0])
-      .fill(cfg.color).stroke({ width: cfg.outlineWidth, color: cfg.outlineColor }))
+  constructor(cfg: ShieldDroneConfig, texture: Texture) {
+    const body = new Sprite(texture)
+    body.anchor.set(0.5)
+    body.width = body.height = cfg.radius * 2
+    this.view.addChild(body)
+    if (import.meta.env.DEV || import.meta.env.ENV === 'debug') {
+      this.view.addChild(new Graphics().circle(0, 0, cfg.radius)
+        .stroke({ color: 0xff5555, width: 1, alpha: 0.55 }))
+    }
   }
 
   sync(model: ShieldDrone) {

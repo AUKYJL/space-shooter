@@ -1,3 +1,4 @@
+import { ENEMY_ASSETS } from '@/test/enemyAssets'
 import { GAMEPLAY_CONFIG, SCENE_TUNING, BULLET_OPTIONS } from '@/test/runConfig'
 import { ENEMY_CONFIG } from '@/test/enemyConfig'
 import { Container } from 'pixi.js'
@@ -19,7 +20,7 @@ const droneConfig = { ...config, enemyPoints: { sentryTurret: 100, shieldDrone: 
   enemies: { ...ENEMY_CONFIG, shieldDrone: { ...ENEMY_CONFIG.shieldDrone, spawnChance: 1 } } }
 function setup(selectedConfig: ScoringConfig = config, stage = 2) {
   const events = new EventBus<RunBridgeEventMap>()
-  const scene = new RunScene({ gameplayConfig: GAMEPLAY_CONFIG, weaponId: 'basic_laser', tuning: SCENE_TUNING, canvas: document.createElement('canvas'), events, scoringConfig: selectedConfig,
+  const scene = new RunScene({ enemyAssets: ENEMY_ASSETS, gameplayConfig: GAMEPLAY_CONFIG, weaponId: 'basic_laser', tuning: SCENE_TUNING, canvas: document.createElement('canvas'), events, scoringConfig: selectedConfig,
     getViewportSize: () => ({ width: 400, height: 800 }) })
   scene.mount(new Container())
   const state = scene as unknown as { spawns: SpawnSystem; difficulty: DifficultySystem; player: PlayerShip; shooting: ShootingSystem }

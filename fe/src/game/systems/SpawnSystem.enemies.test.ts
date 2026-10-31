@@ -1,3 +1,4 @@
+import { ENEMY_ASSETS } from '@/test/enemyAssets'
 import { DifficultySystem } from '@/game/systems/DifficultySystem'
 import { GAMEPLAY_CONFIG } from '@/test/runConfig'
 import { Container } from 'pixi.js'
@@ -11,7 +12,7 @@ const rule = { minStage: 2, firstSpawnDelayMs: 2000, spawnEveryMs: 15000, maxAct
 function setup(spawnRule = rule) {
   const onEnemyDestroyed = vi.fn()
   const onSfx = vi.fn()
-  const system = new SpawnSystem(GAMEPLAY_CONFIG, { container: new Container(), getViewportSize: () => ({ width: 400, height: 800 }),
+  const system = new SpawnSystem(GAMEPLAY_CONFIG, { enemyAssets: ENEMY_ASSETS, container: new Container(), getViewportSize: () => ({ width: 400, height: 800 }),
     getPlayerPosition: () => ({ x: 200, y: 700 }), rng: () => 0.5, enemies: { ...ENEMY_CONFIG, sentryTurret: { ...cfg, ...spawnRule } }, onEnemyDestroyed, onSfx })
   system.setTuning({ ...new DifficultySystem(GAMEPLAY_CONFIG.difficulty).getSpawnTuning(), spawnEveryMs: 1000000 })
   return { system, onEnemyDestroyed, onSfx }

@@ -1,3 +1,4 @@
+import { ENEMY_ASSETS } from '@/test/enemyAssets'
 import { GAMEPLAY_CONFIG, RUN_CONFIG, SCENE_TUNING } from '@/test/runConfig'
 import { describe, expect, it } from 'vitest'
 import { Texture } from 'pixi.js'
@@ -9,7 +10,7 @@ describe('RunScene', () => {
   it('accepts ship visuals options', () => {
     const canvas = document.createElement('canvas')
     const events = new EventBus<RunBridgeEventMap>()
-    const scene = new RunScene({ gameplayConfig: GAMEPLAY_CONFIG, weaponId: 'basic_laser', tuning: SCENE_TUNING,
+    const scene = new RunScene({ enemyAssets: ENEMY_ASSETS, gameplayConfig: GAMEPLAY_CONFIG, weaponId: 'basic_laser', tuning: SCENE_TUNING,
       scoringConfig: { ...RUN_CONFIG, version: 7, asteroidPoints: { normal: 10, fast: 20, big: 30, armored: 50 }, stageBonus: 100 },
       canvas,
       getViewportSize: () => ({ width: 800, height: 600 }),

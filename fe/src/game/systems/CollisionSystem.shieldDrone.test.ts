@@ -1,3 +1,4 @@
+import { ENEMY_ASSETS } from '@/test/enemyAssets'
 import { GAMEPLAY_CONFIG, BULLET_OPTIONS } from '@/test/runConfig'
 import { ENEMY_CONFIG } from '@/test/enemyConfig'
 import { Container } from 'pixi.js'
@@ -12,7 +13,7 @@ import type { ShootingSystem } from './ShootingSystem'
 function setup() {
   const player = new PlayerShip({ config: GAMEPLAY_CONFIG.player, maxHp: 5 })
   player.setPosition(200, 700)
-  const spawns = new SpawnSystem(GAMEPLAY_CONFIG, { getPlayerPosition: () => ({ x: 200, y: 700 }), container: new Container(), getViewportSize: () => ({ width: 400, height: 800 }),
+  const spawns = new SpawnSystem(GAMEPLAY_CONFIG, { enemyAssets: ENEMY_ASSETS, getPlayerPosition: () => ({ x: 200, y: 700 }), container: new Container(), getViewportSize: () => ({ width: 400, height: 800 }),
     rng: () => 0.25, enemies: ENEMY_CONFIG })
   vi.spyOn(spawns, 'getAsteroids').mockReturnValue([])
   spawns.setEnemyStage(3, 1)
@@ -59,7 +60,7 @@ describe('CollisionSystem shield drones', () => {
 
   it('removes protection between hits in the same pass and hides the ring after resolution', () => {
     const s = setup()
-    const view = new SentryTurretView(s.turret.config, s.drone.config)
+    const view = new SentryTurretView(s.turret.config, s.drone.config, ENEMY_ASSETS)
     view.sync(s.turret)
     expect(view.shield.visible).toBe(true)
     // CollisionSystem processes bullets in reverse order: kill the drone first.

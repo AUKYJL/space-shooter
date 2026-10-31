@@ -1,3 +1,4 @@
+import { ENEMY_ASSETS } from '@/test/enemyAssets'
 import { act, cleanup, render, waitFor } from '@testing-library/react'
 import { StrictMode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -8,6 +9,10 @@ const mocks = vi.hoisted(() => ({ ensure: vi.fn(), create: vi.fn(), scene: vi.fn
 vi.mock('@/game/assets/assets', () => ({ ensureRunAssets: mocks.ensure }))
 vi.mock('@/game/core/GameApp', () => ({ GameApp: { create: mocks.create } }))
 vi.mock('@/game/scenes/RunScene', () => ({ RunScene: class { constructor(options: unknown) { mocks.scene(options) } } }))
+vi.mock('@/game/assets/loadEnemyAssets', async () => {
+  const { ENEMY_ASSETS } = await import('@/test/enemyAssets')
+  return { loadEnemyAssets: async () => ENEMY_ASSETS }
+})
 vi.mock('@/game/assets/loadShipAssets', () => ({ loadShipAssets: async () => ({}) }))
 vi.mock('@/game/assets/loadAsteroidAssets', () => ({ loadAsteroidAssets: async () => ({}) }))
 vi.mock('@/game/assets/loadLootAssets', () => ({ loadLootAssets: async () => ({}) }))
@@ -30,6 +35,7 @@ describe('GameCanvas lifecycle', () => {
     await waitFor(() => expect(onReady).toHaveBeenCalledOnce())
     expect(mocks.create).toHaveBeenCalledOnce()
     expect(mocks.scene).toHaveBeenCalledOnce()
+    expect(mocks.scene).toHaveBeenCalledWith(expect.objectContaining({ enemyAssets: ENEMY_ASSETS }))
   })
   it('ignores completion after leaving during asset loading', async () => {
     let finish!: () => void

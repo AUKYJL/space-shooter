@@ -1,3 +1,4 @@
+import { ENEMY_ASSETS } from '@/test/enemyAssets'
 import { DifficultySystem } from '@/game/systems/DifficultySystem'
 import { GAMEPLAY_CONFIG, } from '@/test/runConfig'
 import { Container } from 'pixi.js'
@@ -11,7 +12,7 @@ function setup(overrides: Partial<typeof cfg> = {}, rng = () => 0.25) {
   const onSfx = vi.fn()
   const enemies = { ...ENEMY_CONFIG, sentryTurret: { ...ENEMY_CONFIG.sentryTurret, spawnChance: 0 },
     mineLayer: { ...cfg, ...overrides } }
-  const system = new SpawnSystem(GAMEPLAY_CONFIG, { getPlayerPosition: () => ({ x: 200, y: 700 }), container, getViewportSize: () => ({ width: 400, height: 800 }),
+  const system = new SpawnSystem(GAMEPLAY_CONFIG, { enemyAssets: ENEMY_ASSETS, getPlayerPosition: () => ({ x: 200, y: 700 }), container, getViewportSize: () => ({ width: 400, height: 800 }),
     rng, enemies, onEnemyDestroyed, onSfx })
   system.setTuning({ ...new DifficultySystem(GAMEPLAY_CONFIG.difficulty).getSpawnTuning(), spawnEveryMs: 1000000 })
   return { system, container, onEnemyDestroyed, enemies, onSfx }
@@ -122,7 +123,7 @@ describe('SpawnSystem MineLayer', () => {
     system.destroy()
   })
 
-  it.each([0, 1])('clears active/exploding objects and pooled Graphics idempotently (explode=%s)', (explode) => {
+  it.each([0, 1])('clears active/exploding objects and pooled views idempotently (explode=%s)', (explode) => {
     const { system, container, onEnemyDestroyed } = setup()
     const ship = open(system)
     system.update(1000)

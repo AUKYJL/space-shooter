@@ -30,7 +30,7 @@ export type SentryTurretConfig = Readonly<{
 
 export const SENTRY_TURRET_CONFIG: SentryTurretConfig = Object.freeze({
   contactDamage: 1,
-  minStage: 2,
+  minStage: 1,
   spawnChance: 1,
   firstSpawnDelayMs: 2000,
   spawnEveryMs: 15000,
@@ -38,7 +38,7 @@ export const SENTRY_TURRET_CONFIG: SentryTurretConfig = Object.freeze({
   hp: 6,
   radius: 32,
   width: 64,
-  height: 32,
+  height: 64,
   cannonRadius: 10,
   barrelLength: 22,
   barrelWidth: 6,

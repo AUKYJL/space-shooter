@@ -1,3 +1,4 @@
+import { ENEMY_ASSETS } from '@/test/enemyAssets'
 import { GAMEPLAY_CONFIG, SPAWN_OPTIONS } from '@/test/runConfig'
 import { describe, expect, it } from 'vitest'
 
@@ -18,7 +19,7 @@ describe('SpawnSystem anti-camp', () => {
       return v
     }
 
-    const spawns = new SpawnSystem(GAMEPLAY_CONFIG, { ...SPAWN_OPTIONS,
+    const spawns = new SpawnSystem(GAMEPLAY_CONFIG, { enemyAssets: ENEMY_ASSETS, ...SPAWN_OPTIONS,
       container,
       getViewportSize: () => viewport,
       rng,

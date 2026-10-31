@@ -25,7 +25,24 @@ describe('shared assets', () => {
     await ensureRunAssets()
     await ensureRunAssets()
     expect(pixi.init).toHaveBeenCalledTimes(1)
-    expect(pixi.loadBundle.mock.calls.map(([name]) => name)).toEqual(['ship', 'asteroids', 'loot', 'extraction'])
+    expect(pixi.loadBundle.mock.calls.map(([name]) => name)).toEqual(['ship', 'asteroids', 'loot', 'extraction', 'enemies'])
+  })
+
+  it('shares enemy preloads, retries a failed enemy bundle, and keeps it ready across runs', async () => {
+    const { ensureBundle, ensureRunAssets, useAssetsStore } = await import('./assets')
+    let fail = true
+    pixi.loadBundle.mockImplementation(async (name) => {
+      if (name === 'enemies' && fail) throw new Error('enemy PNG offline')
+    })
+    const first = ensureBundle('enemies')
+    expect(ensureBundle('enemies')).toBe(first)
+    await expect(first).rejects.toThrow('enemy PNG offline')
+    expect(useAssetsStore.getState().bundles.enemies.status).toBe('error')
+    fail = false
+    await ensureRunAssets()
+    await ensureRunAssets()
+    expect(pixi.loadBundle.mock.calls.filter(([name]) => name === 'enemies')).toHaveLength(2)
+    expect(useAssetsStore.getState().bundles.enemies.status).toBe('ready')
   })
 
   it('exposes real weighted progress and retries only failed bundles', async () => {
@@ -43,7 +60,7 @@ describe('shared assets', () => {
     expect(getRunAssetState(useAssetsStore.getState().bundles)).toMatchObject({ status: 'error', error: failed })
     fail = false
     await ensureRunAssets()
-    expect(pixi.loadBundle.mock.calls.map(([name]) => name)).toEqual(['ship', 'asteroids', 'loot', 'extraction', 'loot'])
+    expect(pixi.loadBundle.mock.calls.map(([name]) => name)).toEqual(['ship', 'asteroids', 'loot', 'extraction', 'enemies', 'loot'])
     expect(getRunAssetState(useAssetsStore.getState().bundles)).toMatchObject({ status: 'ready', progress: 1 })
   })
 
@@ -53,7 +70,7 @@ describe('shared assets', () => {
     await ensureBundle('menu')
     expect(pixi.loadBundle.mock.calls.map(([name]) => name)).toEqual(['menu'])
     expect(BUNDLE_URLS.menu).toEqual(BUNDLE_URLS.loot)
-    expect(assetManifest.bundles).toHaveLength(6)
+    expect(assetManifest.bundles).toHaveLength(7)
     expect(assetManifest.bundles.flatMap((bundle) => bundle.assets)).not.toEqual(expect.arrayContaining([expect.objectContaining({ src: expect.stringContaining('/music/') })]))
     expect(pixi.loadBundle).toHaveBeenCalledTimes(1)
   })
