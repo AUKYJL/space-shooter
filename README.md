@@ -1,9 +1,40 @@
-# Space Shooter (Telegram Mini App)
+# Space Shooter
 
-Repo structure:
+Браузерная аркадная игра, разработанная в рамках тестового задания.
 
-- `fe/` — frontend (React + Pixi runtime)
-- `be/` — backend (TBD)
+## Запуск проекта
 
-Project plan and agreements live in `space-shooter-plan/` (start with `space-shooter-plan/README.md`).
+Для запуска необходим установленный Docker с поддержкой Docker Compose.
 
+### 1. Настройка переменных окружения
+
+Из корневой директории проекта создать `.env` файлы на основе примеров:
+
+```bash
+cp be/.env.example be/.env
+cp fe/.env.example fe/.env
+```
+
+При необходимости указать значения переменных в созданных файлах.
+
+### 2. Запуск через Docker
+
+```bash
+docker compose --env-file ./be/.env up --build
+```
+
+При запуске автоматически поднимутся PostgreSQL, backend и frontend, а также применятся миграции Prisma.
+
+### 3. Заполнение базы данных
+
+После первого запуска выполнить seed:
+
+```bash
+docker compose --env-file ./be/.env exec be npx prisma db seed
+```
+
+### 4. Доступ к приложению
+
+Приложение доступно по адресу:
+
+**http://localhost:5173/**

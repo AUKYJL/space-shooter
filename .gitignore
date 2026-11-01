@@ -15,6 +15,7 @@ be/.npm-cache/
 fe/.npm-cache/
 be/.env
 be/.env.*
+!be/.env.example
 dist
 dist-ssr
 *.local
