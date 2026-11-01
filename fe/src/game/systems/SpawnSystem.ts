@@ -93,6 +93,7 @@ export class SpawnSystem {
   constructor(config: GameplayConfig, options: {
     onSfx?: SfxEmitter
     container: Container
+    zonesContainer?: Container
     getViewportSize: () => { width: number; height: number }
     getPlayerPosition: () => { x: number; y: number }
     onAsteroidDestroyed?: (asteroid: Asteroid) => void
@@ -115,8 +116,8 @@ export class SpawnSystem {
     this.timeUntilHealZoneMs = config.zones.heal.firstSpawnMs
     this.onEnemyDestroyed = options.onEnemyDestroyed
     this.container = options.container
-    this.zonesContainer = new Container()
-    this.container.addChild(this.zonesContainer)
+    this.zonesContainer = options.zonesContainer ?? new Container()
+    if (!options.zonesContainer) this.container.addChild(this.zonesContainer)
     this.getViewportSize = options.getViewportSize
     this.getPlayerPosition = options.getPlayerPosition
     this.onAsteroidDestroyed = options.onAsteroidDestroyed

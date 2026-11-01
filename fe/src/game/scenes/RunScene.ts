@@ -32,6 +32,7 @@ export class RunScene implements Scene {
   private asteroidsContainer: Container = new Container()
   private lootContainer: Container = new Container()
   private extractionContainer: Container = new Container()
+  private zonesContainer: Container = new Container()
   private player: PlayerShip
   private input: InputSystem
   private shooting: ShootingSystem
@@ -109,6 +110,7 @@ export class RunScene implements Scene {
       enemyAssets: options.enemyAssets,
       onEnemyDestroyed: (enemy) => { this.enemiesDestroyed[enemy.type] = (this.enemiesDestroyed[enemy.type] ?? 0) + 1 },
       container: this.asteroidsContainer,
+      zonesContainer: this.zonesContainer,
       getViewportSize: options.getViewportSize,
       getPlayerPosition: () => ({ x: this.player.view.position.x, y: this.player.view.position.y }),
       onAsteroidDestroyed: (asteroid) => {
@@ -144,6 +146,7 @@ export class RunScene implements Scene {
   mount(root: Container) {
     root.addChild(this.container)
     this.container.addChild(this.extractionContainer)
+    this.container.addChild(this.zonesContainer)
     this.container.addChild(this.player.view)
     this.container.addChild(this.bulletsContainer)
     this.container.addChild(this.asteroidsContainer)
