@@ -55,6 +55,18 @@ describeWithDb("username/password auth", () => {
     await request(app.getHttpServer()).get("/me").set("Authorization", `Bearer ${res.body.accessToken}`).expect(200);
   });
 
+  it("rejects access and refresh tokens after the user is deleted", async () => {
+    const res = await register().expect(201);
+    const userId = app.get(JwtService).verify(res.body.accessToken).sub;
+    await prisma.user.delete({ where: { id: userId } });
+
+    await request(app.getHttpServer()).get("/me")
+      .set("Authorization", `Bearer ${res.body.accessToken}`).expect(401);
+    const failed = await request(app.getHttpServer()).post("/refresh")
+      .set("Cookie", cookie(res)).expect(401);
+    expect(failed.headers["set-cookie"][0]).toMatch(/Expires=Thu, 01 Jan 1970/);
+  });
+
   it("rejects duplicate normalized usernames and invalid input", async () => {
     const body = credentials();
     await register(body).expect(201);
